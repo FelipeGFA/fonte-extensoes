@@ -89,9 +89,11 @@ def get_all_modules() -> tuple[list[str], list[str]]:
     modules = []
     deleted = []
     for lang in Path("src").iterdir():
-        for extension in lang.iterdir():
-            modules.append(f":src:{lang.name}:{extension.name}")
-            deleted.append(f"{lang.name}.{extension.name}")
+        if lang.is_dir():
+            for extension in lang.iterdir():
+                if extension.is_dir():
+                    modules.append(f":src:{lang.name}:{extension.name}")
+                    deleted.append(f"{lang.name}.{extension.name}")
     return modules, deleted
 
 def main() -> NoReturn:
