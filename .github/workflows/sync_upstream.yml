@@ -1,0 +1,97 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Executa a cada 6 horas
+  workflow_dispatch:  # Permite execução manual
+
+permissions: {}
+
+jobs:
+  sync-branch:
+    name: Sync branch with upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout sync branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: sync
+          fetch-depth: 0
+          token: ${{ secrets.BOT_PAT }}
+          persist-credentials: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/keiyoushi/extensions-source.git || true
+          git fetch upstream main
+
+      - name: Reset sync to upstream/main
+        run: |
+          git reset --hard upstream/main
+          git push origin sync --force
+
+  rebase-main:
+    name: Rebase main on sync
+    needs: sync-branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.BOT_PAT }}
+          persist-credentials: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch sync branch
+        run: git fetch origin sync
+
+      - name: Rebase main on sync
+        run: |
+          echo "Salvando pasta .github local..."
+          cp -r .github .github_backup
+          
+          rm -f .git/index.lock 2>/dev/null || true
+          
+          if git rebase -X theirs origin/sync; then
+            echo "Rebase concluído"
+          else
+            echo "Conflitos detectados, resolvendo..."
+            rm -f .git/index.lock 2>/dev/null || true
+            
+            for file in $(git diff --name-only --diff-filter=U 2>/dev/null); do
+              git checkout --theirs "$file" 2>/dev/null || true
+              git add "$file" 2>/dev/null || true
+            done
+            
+            git add -A 2>/dev/null || true
+            rm -f .git/index.lock 2>/dev/null || true
+            GIT_EDITOR=true git rebase --continue 2>/dev/null || git rebase --skip 2>/dev/null || true
+          fi
+          
+          echo "Restaurando pasta .github local..."
+          rm -rf .github
+          mv .github_backup .github
+          
+          if ! git diff --quiet .github 2>/dev/null; then
+            git add .github
+            git commit --amend --no-edit 2>/dev/null || git commit -m "chore: preserve local .github folder" 2>/dev/null || true
+          fi
+          
+          git push origin main --force-with-lease
