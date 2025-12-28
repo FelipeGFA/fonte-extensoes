@@ -1,0 +1,102 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sync-branch:
+    name: Sync branch with upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout sync branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: sync
+          fetch-depth: 0
+          token: ${{ secrets.BOT_PAT }}
+          persist-credentials: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/keiyoushi/extensions-source.git || true
+          git fetch upstream main
+
+      - name: Reset sync to upstream/main
+        run: |
+          git reset --hard upstream/main
+          git push origin sync --force
+
+  merge-main:
+    name: Merge upstream into main
+    needs: sync-branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.BOT_PAT }}
+          persist-credentials: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config merge.ours.driver true
+
+      - name: Fetch sync branch
+        run: git fetch origin sync
+
+      - name: Check for changes
+        id: check
+        run: |
+          if git diff --quiet HEAD origin/sync; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes to sync"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected, proceeding with merge"
+          fi
+
+      - name: Merge upstream preserving local changes
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          LOCAL_FILES=$(git diff --name-only origin/sync HEAD || true)
+          
+          if ! git merge origin/sync -m "chore: sync with upstream" --no-edit; then
+            echo "Merge has conflicts, resolving..."
+            
+            for file in $(git diff --name-only --diff-filter=U); do
+              if echo "$LOCAL_FILES" | grep -q "^$file$"; then
+                # Keep our version for files we modified
+                git checkout --ours "$file"
+              else
+                git checkout --theirs "$file"
+              fi
+              git add "$file"
+            done
+            
+            git commit -m "chore: sync with upstream (conflicts resolved)"
+          fi
+
+      - name: Push changes
+        if: steps.check.outputs.has_changes == 'true'
+        run: git push origin main
+
+

@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - '**'  # Roda em todas as branches
     paths:
       - '**'
       - '!**.md'
@@ -27,9 +27,6 @@ jobs:
     name: Prepare job
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
-      actions: read
     outputs:
       matrix: ${{ steps.generate-matrices.outputs.matrix }}
       delete: ${{ steps.generate-matrices.outputs.delete }}
@@ -37,7 +34,6 @@ jobs:
       - name: Checkout branch atual
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          token: ${{ secrets.BOT_PAT }}        
           fetch-depth: 0
           persist-credentials: false
 
@@ -55,7 +51,6 @@ jobs:
       - name: Get last successful CI commit
         uses: nrwl/nx-set-shas@3e9ad7370203c1e93d109be57f3b72eb0eb511b1 # v4.4.0
         with:
-          gh-token: ${{ secrets.BOT_PAT }}
           fallback-sha: 4b825dc642cb6eb9a060e54bf8d69288fbee4904 # empty tree
 
       - id: generate-matrices
@@ -75,7 +70,6 @@ jobs:
       - name: Checkout branch atual
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          token: ${{ secrets.BOT_PAT }}
           persist-credentials: false
 
       - name: Set up Java
@@ -106,7 +100,6 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: "github.repository == 'FelipeGFA/fonte-extensoes'"
         with:
-
           name: "individual-apks-${{ matrix.chunk.number }}"
           path: "**/*.apk"
           retention-days: 1
@@ -137,7 +130,6 @@ jobs:
         with:
           ref: main
           path: main
-          token: ${{ secrets.BOT_PAT }}
           persist-credentials: false
 
       - name: Create repo artifacts
