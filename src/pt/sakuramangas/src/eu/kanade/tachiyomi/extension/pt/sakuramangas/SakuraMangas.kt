@@ -1,17 +1,9 @@
 package eu.kanade.tachiyomi.extension.pt.sakuramangas
 
-import android.util.Base64
-import android.util.Log
-import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.lib.randomua.addRandomUAPreferenceToScreen
-import eu.kanade.tachiyomi.lib.randomua.getPrefCustomUA
-import eu.kanade.tachiyomi.lib.randomua.getPrefUAType
-import eu.kanade.tachiyomi.lib.randomua.setRandomUserAgent
-import eu.kanade.tachiyomi.lib.synchrony.Deobfuscator
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
-import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -20,84 +12,132 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
-import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.FormBody
+import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import okio.IOException
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Element
-import java.security.MessageDigest
-import java.util.Calendar
-import kotlin.concurrent.thread
+import org.jsoup.nodes.Document
 
-class SakuraMangas : HttpSource(), ConfigurableSource {
+class SakuraMangas : HttpSource() {
     override val lang = "pt-BR"
-
     override val supportsLatest = true
-
     override val name = "Sakura Mangás"
-
     override val baseUrl = "https://sakuramangas.org"
 
-    private val preferences = getPreferences()
+    private companion object {
+        const val CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+        const val SEC_CH_UA = "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\""
+    }
 
-    override val client = network.cloudflareClient.newBuilder()
-        .setRandomUserAgent(
-            preferences.getPrefUAType(),
-            preferences.getPrefCustomUA(),
-        )
-        .rateLimit(3, 2)
-        .build()
+    private val apiClient = network.client.newBuilder().rateLimit(2).build()
+    override val client = network.cloudflareClient.newBuilder().rateLimit(2).build()
+
+    private val proofGenerator by lazy { WebViewProofGenerator(baseUrl, CHROME_UA) }
 
     private var genresSet: Set<Genre> = emptySet()
-    private var demographyOptions: List<Pair<String, String>> = listOf(
-        "Todos" to "",
-    )
-    private var classificationOptions: List<Pair<String, String>> = listOf(
-        "Todos" to "",
-    )
-    private var orderByOptions: List<Pair<String, String>> = listOf(
-        "Lidos" to "3",
-    )
+    private var demographyOptions = listOf("Todos" to "")
+    private var classificationOptions = listOf("Todos" to "")
+    private var orderByOptions = listOf("Lidos" to "3")
+    private var fetchFiltersAttempts = 0
+    private val scope = CoroutineScope(Dispatchers.IO)
 
-    override fun headersBuilder() = super.headersBuilder()
+    private fun launchIO(block: () -> Unit) = scope.launch { block() }
+
+    // ================================ Headers =======================================
+
+    private fun baseHeaders() = Headers.Builder()
+        .set("User-Agent", CHROME_UA)
+        .set("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
+        .set("Sec-CH-UA", SEC_CH_UA)
+        .set("Sec-CH-UA-Mobile", "?0")
+        .set("Sec-CH-UA-Platform", "\"Windows\"")
+        .set("DNT", "1")
+
+    override fun headersBuilder() = baseHeaders()
+        .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+        .set("Sec-Fetch-Dest", "document")
+        .set("Sec-Fetch-Mode", "navigate")
+        .set("Sec-Fetch-Site", "none")
+        .set("Sec-Fetch-User", "?1")
+        .set("Upgrade-Insecure-Requests", "1")
+
+    private fun htmlHeaders() = headersBuilder()
         .set("Referer", "$baseUrl/")
+        .set("Sec-Fetch-Site", "same-origin")
+        .build()
+
+    private fun ajaxHeaders(referer: String) = baseHeaders()
+        .set("Accept", "text/html, */*; q=0.01")
+        .set("Origin", baseUrl)
+        .set("Referer", referer)
         .set("X-Requested-With", "XMLHttpRequest")
-        .set("Connection", "keep-alive")
-        .set("Cache-Control", "no-cache")
-        .apply {
-            if (!preferences.getPrefCustomUA().isNullOrEmpty()) {
-                set("User-Agent", preferences.getPrefCustomUA()!!)
-            }
-        }
+        .set("Sec-Fetch-Dest", "empty")
+        .set("Sec-Fetch-Mode", "cors")
+        .set("Sec-Fetch-Site", "same-origin")
+        .build()
+
+    private fun securityHeaders(keys: SecurityKeys, referer: String, token: String) = ajaxHeaders(referer).newBuilder()
+        .add("X-Client-Signature", keys.clientSignature)
+        .add("X-Verification-Key-1", keys.xVerificationKey1)
+        .add("X-Verification-Key-2", keys.xVerificationKey2)
+        .add("X-CSRF-Token", token)
+        .build()
+
+    private fun scriptHeaders() = baseHeaders()
+        .set("Accept", "*/*")
+        .set("Referer", "$baseUrl/")
+        .set("Sec-Fetch-Dest", "script")
+        .set("Sec-Fetch-Mode", "no-cors")
+        .set("Sec-Fetch-Site", "same-origin")
+        .build()
+
+    private fun imageHeaders() = baseHeaders()
+        .set("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
+        .set("Referer", "$baseUrl/")
+        .set("Sec-Fetch-Dest", "image")
+        .set("Sec-Fetch-Mode", "cors")
+        .set("Sec-Fetch-Site", "same-origin")
+        .set("X-Requested-With", "SakuraMatchClient")
+        .set("X-Signature-Version", "v5-fetch-custom")
+        .build()
+
+    // ================================ Requests =======================================
+
+    override fun mangaDetailsRequest(manga: SManga) = GET(baseUrl + manga.url, htmlHeaders())
+    override fun chapterListRequest(manga: SManga) = GET(baseUrl + manga.url, htmlHeaders())
+    override fun pageListRequest(chapter: SChapter) = GET(baseUrl + chapter.url, htmlHeaders())
+    override fun imageRequest(page: Page) = GET(page.imageUrl!!, imageHeaders())
+    override fun getMangaUrl(manga: SManga) = "$baseUrl${manga.url}"
 
     // ================================ Popular =======================================
 
-    override fun popularMangaRequest(page: Int): Request =
-        searchMangaRequest(page, "", FilterList())
+    override fun popularMangaRequest(page: Int) = GET("$baseUrl/dist/sakura/models/home/__.home_maislidos.php", headers)
 
-    override fun popularMangaParse(response: Response): MangasPage = searchMangaParse(response)
+    override fun fetchPopularManga(page: Int) = apiClient.newCall(popularMangaRequest(page))
+        .asObservableSuccess()
+        .map { popularMangaParse(it) }
+
+    override fun popularMangaParse(response: Response): MangasPage {
+        val mangas = response.parseAs<SakuraMangasPopularResponseDto>().data.map { it.toSManga(baseUrl) }
+        return MangasPage(mangas, hasNextPage = false)
+    }
 
     // ================================ Latest =======================================
 
-    override fun latestUpdatesRequest(page: Int): Request =
-        GET("$baseUrl/dist/sakura/models/home/__.home_ultimos.php", headers)
+    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/dist/sakura/models/home/__.home_ultimos.php", headers)
+
+    override fun fetchLatestUpdates(page: Int) = apiClient.newCall(latestUpdatesRequest(page))
+        .asObservableSuccess()
+        .map { latestUpdatesParse(it) }
 
     override fun latestUpdatesParse(response: Response): MangasPage {
-        val result = response.parseAs<List<String>>()
-
-        val mangas = result.map {
-            val element = Jsoup.parseBodyFragment(it, baseUrl)
-            SManga.create().apply {
-                title = element.selectFirst(".h5-titulo")!!.text()
-                setUrlWithoutDomain(element.selectFirst("a")!!.absUrl("href"))
-                thumbnail_url = element.selectFirst("img")?.absUrl("src")
-            }
-        }
-
+        val mangas = response.parseAs<List<SakuraMangasLatestDto>>().map { it.toSManga(baseUrl) }
         return MangasPage(mangas, hasNextPage = false)
     }
 
@@ -107,349 +147,250 @@ class SakuraMangas : HttpSource(), ConfigurableSource {
         val form = FormBody.Builder()
             .add("search", query)
             .add("order", "3")
-            .add("offset", ((page - 1) * 15).toString())
-            .add("limit", "15")
-
-        val inclGenres = mutableListOf<String>()
-        val exclGenres = mutableListOf<String>()
-
-        var demography: String? = null
-        var classification: String? = null
-        var orderBy: String? = null
+            .add("offset", ((page - 1) * 30).toString())
+            .add("limit", "30")
 
         filters.forEach { filter ->
             when (filter) {
                 is GenreList -> filter.state.forEach {
                     when (it.state) {
-                        Filter.TriState.STATE_INCLUDE -> inclGenres.add(it.id)
-                        Filter.TriState.STATE_EXCLUDE -> exclGenres.add(it.id)
+                        Filter.TriState.STATE_INCLUDE -> form.add("tags[]", it.id)
+                        Filter.TriState.STATE_EXCLUDE -> form.add("excludeTags[]", it.id)
                         else -> {}
                     }
                 }
-
-                is DemographyFilter -> demography = filter.getValue().ifEmpty { null }
-                is ClassificationFilter -> classification = filter.getValue().ifEmpty { null }
-                is OrderByFilter -> orderBy = filter.getValue().ifEmpty { null }
+                is DemographyFilter -> filter.getValue().takeIf { it.isNotEmpty() }?.let { form.add("demography", it) }
+                is ClassificationFilter -> filter.getValue().takeIf { it.isNotEmpty() }?.let { form.add("classification", it) }
+                is OrderByFilter -> filter.getValue().takeIf { it.isNotEmpty() }?.let { form.add("order", it) }
                 else -> {}
             }
         }
 
-        inclGenres.forEach { form.add("tags[]", it) }
-        exclGenres.forEach { form.add("excludeTags[]", it) }
-
-        demography?.let { form.add("demography", it) }
-        classification?.let { form.add("classification", it) }
-        orderBy?.let { form.add("order", it) }
-
-        return POST("$baseUrl/dist/sakura/models/obras/__.obras_buscar.php", headers, form.build())
+        return POST("$baseUrl/dist/sakura/models/obras/__.obras__buscar.php", headers, form.build())
     }
 
-    fun searchMangaFromElement(element: Element) = SManga.create().apply {
-        title = element.selectFirst(".h5-titulo")!!.text()
-        thumbnail_url = element.selectFirst("img.img-pesquisa")?.absUrl("src")
-        description = element.selectFirst(".p-sinopse")?.text()
-
-        setUrlWithoutDomain(element.selectFirst("a")!!.absUrl("href"))
-    }
+    override fun fetchSearchManga(page: Int, query: String, filters: FilterList) = apiClient.newCall(searchMangaRequest(page, query, filters))
+        .asObservableSuccess()
+        .map { searchMangaParse(it) }
 
     override fun searchMangaParse(response: Response): MangasPage {
-        val result = response.parseAs<SakuraMangasResultDto>()
-        val document = result.asJsoup("$baseUrl/obras/")
-        val seriesList = document.select(".result-item").map(::searchMangaFromElement)
-        return MangasPage(seriesList, result.hasMore)
+        val result = response.parseAs<SakuraMangasSearchResponseDto>()
+        return MangasPage(result.data.map { it.toSManga(baseUrl) }, result.hasMore)
     }
 
     // ================================ Details =======================================
 
-    override fun getMangaUrl(manga: SManga): String = "$baseUrl${manga.url}"
+    private fun validateNotBlocked(document: Document, url: String) {
+        if (url.contains("block.php") || document.selectFirst("meta[manga-id]") == null) {
+            throw IOException("Bloqueado pelo site. Abra a WebView para resolver.")
+        }
+    }
 
-    private fun mangaDetailsApiRequest(mangaId: String, challenge: String, token: String): Request {
-        val proof = generateHeaderProof(challenge, keys.mangaInfo)!!
+    private data class PageMetadata(val mangaId: String, val challenge: String, val token: String)
+
+    private fun extractMetadata(document: Document): PageMetadata {
+        val mangaId = document.selectFirst("meta[manga-id]")!!.attr("manga-id")
+        val challenge = document.selectFirst("meta[name=header-challenge]")!!.attr("content")
+        val token = document.selectFirst("meta[name=csrf-token]")!!.attr("content")
+        return PageMetadata(mangaId, challenge, token)
+    }
+
+    private fun fetchSecurityData(document: Document): Pair<SecurityKeys, String> {
+        val securityScriptUrl = document
+            .selectFirst("script[src*=security]")
+            ?.attr("abs:src")
+            ?: throw IOException("Could not locate the security script")
+
+        val normalizeScriptUrl = document
+            .selectFirst("script[src*=normalize]")
+            ?.attr("abs:src")
+            ?: throw IOException("Could not locate the normalize script")
+
+        val securityScript = client.newCall(GET(securityScriptUrl, scriptHeaders()))
+            .execute().body.string()
+
+        val normalizeScript = client.newCall(GET(normalizeScriptUrl, scriptHeaders()))
+            .execute().body.string()
+
+        val keys = SecurityKeysExtractor.extract(securityScript, normalizeScript)
+        return keys to securityScript
+    }
+
+    override fun fetchMangaDetails(manga: SManga) = client.newCall(mangaDetailsRequest(manga))
+        .asObservableSuccess()
+        .map { mangaDetailsParse(it) }
+
+    override fun mangaDetailsParse(response: Response): SManga {
+        val document = response.asJsoup()
+        val url = response.request.url.toString()
+
+        validateNotBlocked(document, url)
+
+        val (mangaId, challenge, token) = extractMetadata(document)
+        val (keys, securityScript) = fetchSecurityData(document)
+
+        val proof = proofGenerator.generate(challenge, keys.mangaInfo, securityScript, url)
+            ?: throw IOException("Failed to generate proof")
 
         val form = FormBody.Builder()
             .add("manga_id", mangaId)
             .add("dataType", "json")
             .add("challenge", challenge)
             .add("proof", proof)
-
-        val detailsHeaders = headers.newBuilder()
-            .add("X-Verification-Key-1", keys.xVerificationKey1)
-            .add("X-Verification-Key-2", keys.xVerificationKey2)
-            .add("X-CSRF-Token", token)
             .build()
 
-        return POST("$baseUrl/dist/sakura/models/manga/__obf__manga_info.php", detailsHeaders, form.build())
+        return client.newCall(POST("$baseUrl/dist/sakura/models/manga/.__obf__manga_info.php", securityHeaders(keys, url, token), form))
+            .execute()
+            .parseAs<SakuraMangaInfoDto>()
+            .toSManga(document.baseUri())
     }
-
-    override fun mangaDetailsParse(response: Response): SManga {
-        val document = response.asJsoup()
-        val mangaId = document.selectFirst("meta[manga-id]")!!.attr("manga-id")
-        val challenge = document.selectFirst("meta[name=header-challenge]")!!.attr("content")
-        val token = document.selectFirst("meta[name=csrf-token]")!!.attr("content")
-
-        return client.newCall(mangaDetailsApiRequest(mangaId, challenge, token)).execute()
-            .parseAs<SakuraMangaInfoDto>().toSManga(document.baseUri())
-    }
-
-    private val keys: Keys by lazy {
-        val mangaInfoRegex = """(?:manga_info:\s+)(\d+)""".toRegex()
-        val chapterReadRegex = """(?:chapter_read:\s+)(\d+)""".toRegex()
-        val key1Regex = """(?:.Key-1.]\s?=\s+?.)([^']+)""".toRegex()
-        val key2Regex = """(?:.Key-2.]\s?=\s+?.)([^']+)""".toRegex()
-
-        val script = client.newCall(GET("$baseUrl/dist/sakura/global/security.oby.js", headers))
-            .execute().body.string()
-
-        val deobfuscated = Deobfuscator.deobfuscateScript(script)!!
-
-        Keys(
-            mangaInfo = mangaInfoRegex.find(deobfuscated)?.groupValues?.last()?.toLong() ?: 0L,
-            chapterRead = chapterReadRegex.find(deobfuscated)?.groupValues?.last()?.toLong() ?: 0L,
-            xVerificationKey1 = key1Regex.find(deobfuscated)?.groupValues?.last() ?: "",
-            xVerificationKey2 = key2Regex.find(deobfuscated)?.groupValues?.last() ?: "",
-        )
-    }
-
-    class Keys(
-        val mangaInfo: Long,
-        val chapterRead: Long,
-        val xVerificationKey1: String,
-        val xVerificationKey2: String,
-    )
 
     // ================================ Chapters =======================================
 
-    private fun chapterListApiRequest(mangaId: String, challenge: String, token: String, page: Int): Request {
-        val proof = generateHeaderProof(challenge, keys.mangaInfo)!!
-        val form = FormBody.Builder()
-            .add("manga_id", mangaId)
-            .add("offset", ((page - 1) * 90).toString())
-            .add("order", "desc")
-            .add("limit", "90")
-            .add("challenge", challenge)
-            .add("proof", proof)
-
-        val chapterHeaders = headers.newBuilder()
-            .add("X-Verification-Key-1", keys.xVerificationKey1)
-            .add("X-Verification-Key-2", keys.xVerificationKey2)
-            .add("X-CSRF-Token", token)
-            .build()
-
-        return POST("$baseUrl/dist/sakura/models/manga/__obf__manga_capitulos.php", chapterHeaders, form.build())
-    }
+    override fun fetchChapterList(manga: SManga) = client.newCall(chapterListRequest(manga))
+        .asObservableSuccess()
+        .map { chapterListParse(it) }
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
-        val mangaId = document.selectFirst("meta[manga-id]")!!.attr("manga-id")
-        val challenge = document.selectFirst("meta[name=header-challenge]")!!.attr("content")
-        val token = document.selectFirst("meta[name=csrf-token]")!!.attr("content")
+        val url = response.request.url.toString()
+
+        validateNotBlocked(document, url)
+
+        val (mangaId, challenge, token) = extractMetadata(document)
+        val (keys, securityScript) = fetchSecurityData(document)
+
+        val proof = proofGenerator.generate(challenge, keys.mangaInfo, securityScript, url)
+            ?: throw IOException("Failed to generate proof")
 
         var page = 1
         val chapters = mutableListOf<SChapter>()
-        do {
-            val doc = client.newCall(chapterListApiRequest(mangaId, challenge, token, page++)).execute().asJsoup()
+        var result: SakuraMangasChaptersDto
 
-            val chapterGroup = doc.select(".capitulo-item").map(::chapterFromElement).also {
-                chapters += it
+        do {
+            val form = FormBody.Builder()
+                .add("manga_id", mangaId)
+                .add("offset", ((page - 1) * 90).toString())
+                .add("order", "desc")
+                .add("limit", "90")
+                .add("challenge", challenge)
+                .add("proof", proof)
+                .build()
+
+            val chapterResponse = client
+                .newCall(POST("$baseUrl/dist/sakura/models/manga/.__obf__manga_capitulos.php", securityHeaders(keys, url, token), form))
+                .execute()
+
+            if (!chapterResponse.isSuccessful) {
+                val errorBody = chapterResponse.body.string()
+                if (errorBody.contains("cf_clearance") || errorBody.contains("challenge-platform")) {
+                    throw IOException("Cloudflare bloqueou. Abra a WebView para resolver.")
+                }
+                throw IOException("Erro ao buscar capítulos: HTTP ${chapterResponse.code}")
             }
-        } while (chapterGroup.isNotEmpty())
+
+            result = chapterResponse.parseAs()
+            chapters += result.data.map { it.toSChapter() }
+            page++
+        } while (result.has_more)
 
         return chapters
     }
 
-    fun chapterFromElement(element: Element) = SChapter.create().apply {
-        name = buildString {
-            element.selectFirst(".num-capitulo")
-                ?.text()
-                ?.let { append(it) }
-
-            element.selectFirst(".cap-titulo")
-                ?.text()
-                ?.takeIf { it.isNotBlank() }
-                ?.let { append(" - $it") }
-        }
-        scanlator = element.selectFirst(".scan-nome")?.text()
-        chapter_number =
-            element
-                .selectFirst(".num-capitulo")!!
-                .attr("data-chapter")
-                .toFloatOrNull() ?: 1F
-        date_upload = element.selectFirst(".cap-data")?.text()?.toDate() ?: 0L
-        setUrlWithoutDomain(element.selectFirst("a")!!.absUrl("href"))
-    }
-
     // ================================ Pages =======================================
-
-    private fun pageListApiRequest(
-        chapterId: String,
-        token: String,
-        challenge: String,
-        csrf: String,
-    ): Request {
-        val proof = generateHeaderProof(challenge, keys.chapterRead)!!
-        val form = FormBody.Builder()
-            .add("chapter_id", chapterId)
-            .add("token", token)
-            .add("challenge", challenge)
-            .add("proof", proof)
-
-        val pageHeaders = headers.newBuilder()
-            .add("X-Verification-Key-1", keys.xVerificationKey1)
-            .add("X-Verification-Key-2", keys.xVerificationKey2)
-            .add("X-CSRF-Token", csrf)
-            .build()
-
-        return POST(
-            "$baseUrl/dist/sakura/models/capitulo/__obf__capitulos_read.php",
-            pageHeaders,
-            form.build(),
-        )
-    }
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
+        val url = response.request.url.toString()
 
         val chapterId = document.selectFirst("meta[chapter-id]")!!.attr("chapter-id")
-        val token = document.selectFirst("meta[token]")!!.attr("token")
+        val chapterToken = document.selectFirst("meta[token]")!!.attr("token")
         val subtoken = document.selectFirst("meta[token]")!!.attr("subtoken")
         val challenge = document.selectFirst("meta[name=header-challenge]")!!.attr("content")
         val csrf = document.selectFirst("meta[name=csrf-token]")!!.attr("content")
 
-        val response = client.newCall(pageListApiRequest(chapterId, token, challenge, csrf)).execute()
+        val (keys, securityScript) = fetchSecurityData(document)
+
+        val proof = proofGenerator.generate(challenge, keys.chapterRead, securityScript, url)
+            ?: throw IOException("Failed to generate proof")
+
+        val form = FormBody.Builder()
+            .add("chapter_id", chapterId)
+            .add("token", chapterToken)
+            .add("challenge", challenge)
+            .add("proof", proof)
+            .build()
+
+        val imagesResponse = client
+            .newCall(POST("$baseUrl/dist/sakura/models/capitulo/__obf__capitulos__read.php", securityHeaders(keys, url, csrf), form))
+            .execute()
             .parseAs<SakuraMangaChapterReadDto>()
 
-        val baseUrl = document.baseUri().trimEnd('/')
+        val images = YggdrasilCipher.decrypt(imagesResponse.data, subtoken)
+        val baseImageUrl = document.baseUri().trimEnd('/')
 
-        return AetherCipher.decrypt(response.imageUrls, subtoken)
-            .parseAs<List<String>>()
-            .mapIndexed { index, url ->
-                Page(index, imageUrl = "$baseUrl/$url".toHttpUrl().toString())
-            }
+        return images.mapIndexed { index, imgUrl ->
+            Page(index, imageUrl = "$baseImageUrl/$imgUrl".toHttpUrl().toString())
+        }
     }
 
     override fun imageUrlParse(response: Response): String = ""
 
+    // ================================ Filters =======================================
+
     override fun getFilterList(): FilterList {
-        thread {
-            fetchFilters()
+        launchIO { fetchFilters() }
+
+        val filters = mutableListOf<Filter<*>>()
+
+        if (genresSet.isEmpty()) {
+            filters += Filter.Header("Clique em 'Redefinir' para carregar os filtros")
+            filters += Filter.Separator()
         }
 
-        return FilterList(
-            OrderByFilter("Ordenar por", orderByOptions, "order"),
-            DemographyFilter("Demografia", demographyOptions, "demography"),
-            ClassificationFilter("Classificação", classificationOptions, "classification"),
-            GenreList(
-                title = "Gêneros",
-                genres = genresSet.toTypedArray(),
-            ),
-        )
+        filters += OrderByFilter("Ordenar por", orderByOptions)
+        filters += DemographyFilter("Demografia", demographyOptions)
+        filters += ClassificationFilter("Classificação", classificationOptions)
+        filters += GenreList("Gêneros", genresSet.toTypedArray())
+
+        return FilterList(filters)
     }
 
     private fun fetchFilters() {
-        if (genresSet.isNotEmpty()) {
-            return
-        }
+        if (genresSet.isNotEmpty() || fetchFiltersAttempts >= 3) return
+        fetchFiltersAttempts++
 
-        try {
-            val document = client
-                .newCall(GET("$baseUrl/obras/", headers))
-                .execute()
-                .asJsoup()
+        runCatching {
+            val document = client.newCall(GET("$baseUrl/obras/", headers)).execute().asJsoup()
 
-            genresSet = document.select(".genero-badge").map { element ->
-                val id = element.attr("data-value")
-                Genre(element.ownText(), id)
-            }.toSet()
+            val genres = document.select("#generos-badges .genre-chip").map { el ->
+                Genre(el.text(), el.attr("data-value"))
+            }
+            val themes = document.select("#temas-badges .genre-chip").map { el ->
+                Genre(el.text(), el.attr("data-value"))
+            }
+            genresSet = (genres + themes).toSet()
 
-            val demoOpts = document.select("select#demografia-select option").mapNotNull { opt ->
-                val value = opt.attr("value").orEmpty()
-                val text = opt.text().trim()
+            val demoOpts = document.select("#group-demografia .btn-filter-chip").mapNotNull { el ->
+                val value = el.attr("data-value")
+                val text = el.text()
                 if (text.isEmpty()) null else text to value
             }
             if (demoOpts.isNotEmpty()) demographyOptions = demoOpts
 
-            val classOpts =
-                document.select("select#classificacao-select option").mapNotNull { opt ->
-                    val value = opt.attr("value").orEmpty()
-                    val text = opt.text().trim()
-                    if (text.isEmpty()) null else text to value
-                }
-            if (classOpts.isNotEmpty()) classificationOptions = classOpts
-
-            val orderOptions = document.select("select#ordenar-por option").mapNotNull { opt ->
-                val value = opt.attr("value").orEmpty()
-                val text = opt.text().trim()
+            val classOpts = document.select("#group-classificacao .btn-filter-chip").mapNotNull { el ->
+                val value = el.attr("data-value")
+                val text = el.text()
                 if (text.isEmpty()) null else text to value
             }
-            if (orderOptions.isNotEmpty()) orderByOptions = orderOptions
-        } catch (e: Exception) {
-            Log.e("SakuraMangas", "failed to fetch genres", e)
-        }
-    }
+            if (classOpts.isNotEmpty()) classificationOptions = classOpts
 
-    private fun String.toDate(): Long {
-        val trimmedDate = this.split(" ")
-
-        if (trimmedDate[0] != "Há") return 0L
-
-        val number = trimmedDate[1].toIntOrNull() ?: return 0L
-
-        val unit = trimmedDate[2]
-
-        val javaUnit = when (unit) {
-            "ano", "anos" -> Calendar.YEAR
-            "mês", "meses" -> Calendar.MONTH
-            "semana", "semanas" -> Calendar.WEEK_OF_MONTH
-            "dia", "dias" -> Calendar.DAY_OF_MONTH
-            "hora", "horas" -> Calendar.HOUR
-            "minuto", "minutos" -> Calendar.MINUTE
-            "segundo", "segundos" -> Calendar.SECOND
-            else -> return 0L
-        }
-
-        val now = Calendar.getInstance()
-
-        now.add(javaUnit, -number)
-
-        return now.timeInMillis
-    }
-
-    // Function extracted from https://sakuramangas.org/dist/sakura/pages/capitulo/capitulo.v100w.obs.js
-    private fun generateHeaderProof(base64: String?, key: Long?): String? {
-        val userAgent = headers["User-Agent"]
-        if (base64 == null || key == null || userAgent == null) {
-            return null
-        }
-
-        return try {
-            val decoded = String(Base64.decode(base64, Base64.DEFAULT), Charsets.UTF_8)
-
-            val parts = decoded.split('/')
-            if (parts.size != 3) {
-                return null
+            val orderOpts = document.select("#group-ordenacao .btn-sort-option").mapNotNull { el ->
+                val value = el.attr("data-value")
+                val text = el.text()
+                if (text.isEmpty()) null else text to value
             }
-
-            val address = parts.first()
-            val pathSegment = parts.last()
-
-            var result = address + userAgent + key + pathSegment
-
-            val digest = MessageDigest.getInstance("SHA-256")
-            repeat(29) {
-                val data = result.toByteArray(Charsets.UTF_8)
-                val hashBytes = digest.digest(data)
-                digest.reset()
-                result = hashBytes.joinToString("") { byte ->
-                    String.format("%02x", byte)
-                }
-            }
-            result
-        } catch (_: Exception) {
-            throw IOException("Falha ao gerar token")
+            if (orderOpts.isNotEmpty()) orderByOptions = orderOpts
         }
-    }
-
-    override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        addRandomUAPreferenceToScreen(screen)
     }
 }
