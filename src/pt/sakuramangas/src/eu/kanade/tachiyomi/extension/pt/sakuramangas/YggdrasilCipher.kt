@@ -677,17 +677,50 @@ object YggdrasilCipher {
         return String(result)
     }
 
+    /**
+     * Decrypts using DRAUPNIR cipher algorithm.
+     * 1. Generates SHA256 hash of subtoken and converts to bytes
+     * 2. For each byte:
+     *    - Calculate inverted key byte: ~keyByte & 255
+     *    - Calculate position value: index * invertedKeyByte
+     *    - Subtract keyByte and position value from encrypted byte
+     *    - Adjust for modulo 256
+     */
+    private fun decryptDraupnir(encrypted: ByteArray, subtoken: String): String {
+        val sha256Hex = CryptoUtils.sha256(subtoken)
+        val keyBytes = CryptoUtils.hexToBytes(sha256Hex)
+        val keyLength = keyBytes.size
+
+        val result = CharArray(encrypted.size)
+
+        for (i in encrypted.indices) {
+            val byteValue = encrypted[i].toInt() and 0xFF
+            val keyByte = keyBytes[i % keyLength].toInt() and 0xFF
+            val invertedKey = keyByte.inv() and 0xFF
+            val positionValue = i * invertedKey
+
+            var decrypted = byteValue - keyByte - positionValue
+            decrypted = decrypted % 256
+            if (decrypted < 0) {
+                decrypted += 256
+            }
+
+            result[i] = decrypted.toChar()
+        }
+        return String(result)
+    }
+
     fun decipher(
         encryptedEphemeralKey: SakuraMangaChapterReadEphemeralKeyDto,
         subtoken: String,
     ): String {
         val cipherName = encryptedEphemeralKey.cipher.uppercase()
 
-        // Payload is Base64, same as Yggdrasil JS (atob)
         val payloadBytes = Base64.decode(encryptedEphemeralKey.payload, Base64.DEFAULT)
 
         return when (cipherName) {
             "BIFROST" -> decryptBifrost(payloadBytes, subtoken)
+            "DRAUPNIR" -> decryptDraupnir(payloadBytes, subtoken)
             "FAFNIR" -> decryptFafnir(payloadBytes, subtoken)
             "FENRIR" -> decryptFenrir(payloadBytes, subtoken)
             "FREYA" -> decryptFreya(payloadBytes, subtoken)
