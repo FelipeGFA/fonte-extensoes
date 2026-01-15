@@ -2,7 +2,7 @@ ext {
     extName = 'Verdinha'
     extClass = '.Verdinha'
     baseUrl = 'https://verdinha.wtf'
-    overrideVersionCode = 64
+    extVersionCode = 64
     isNsfw = true
 }
 

@@ -138,13 +138,6 @@ data class PageDto(
 // ========================= Auth =========================
 
 @Serializable
-data class AuthRequestDto(
-    val login: String,
-    val senha: String,
-    @SerialName("tipo_usuario") val userType: String,
-)
-
-@Serializable
 data class AuthResponseDto(
     @SerialName("access_token") val accessToken: String,
 )

@@ -1,13 +1,9 @@
 package eu.kanade.tachiyomi.extension.pt.sussyscan
 
-import android.app.Application
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
-import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -19,7 +15,6 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -54,15 +49,14 @@ class Verdinha : HttpSource(), ConfigurableSource {
 
     private val json: Json = Injekt.get<Json>()
 
+    private var authToken: String? = null
+
     override val client: OkHttpClient by lazy {
         network.cloudflareClient.newBuilder()
             .rateLimit(2)
             .addInterceptor { chain ->
                 val request = chain.request()
-                val token = getToken()
-                if (token.isEmpty()) {
-                    throw IOException("Faça o login nas configurações")
-                }
+                val token = fetchAuthToken()
                 val newRequest = request.newBuilder()
                     .header("Authorization", "Bearer $token")
                     .build()
@@ -226,103 +220,34 @@ class Verdinha : HttpSource(), ConfigurableSource {
 
     // ========================= Auth =======================================
 
-    private fun getToken(): String {
-        val email = preferences.getString(PREF_EMAIL, "") ?: ""
-        val password = preferences.getString(PREF_PASSWORD, "") ?: ""
-        if (email.isEmpty() || password.isEmpty()) {
-            return ""
+    private fun fetchAuthToken(): String {
+        authToken?.let { return it }
+
+        val loginBody = LOGIN_BODY.toRequestBody("application/json".toMediaType())
+
+        val loginRequest = POST(
+            "$apiUrl/auth/login",
+            headers,
+            loginBody,
+        )
+
+        val response = network.cloudflareClient
+            .newCall(loginRequest)
+            .execute()
+
+        if (!response.isSuccessful) {
+            response.close()
+            throw Exception("Falha no login")
         }
 
-        val token = preferences.getString(PREF_TOKEN, "") ?: ""
-        if (token.isNotEmpty()) return token
-
-        return login(email, password)
-    }
-
-    private fun login(email: String, password: String): String {
-        return try {
-            val payload = AuthRequestDto(login = email, senha = password, userType = "usuario")
-            val body = json.encodeToString(payload).toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url("$apiUrl/auth/login")
-                .post(body)
-                .header("Referer", "$baseUrl/")
-                .header("Origin", baseUrl)
-                .header("Accept", "application/json, text/plain, */*")
-                .header("scan-id", "1")
-                .header("Cache-Control", "no-cache")
-                .header("Content-Type", "application/json")
-                .build()
-            val response = OkHttpClient().newCall(request).execute()
-            if (response.isSuccessful) {
-                val authResponse = response.parseAs<AuthResponseDto>()
-                preferences.edit().putString(PREF_TOKEN, authResponse.accessToken).apply()
-                authResponse.accessToken
-            } else {
-                response.close()
-                ""
-            }
-        } catch (e: Exception) {
-            ""
-        }
-    }
-
-    private fun checkLogin(email: String, password: String) {
-        if (email.isEmpty() || password.isEmpty()) return
-
-        Thread {
-            val token = login(email, password)
-            val message = if (token.isNotEmpty()) {
-                "Login realizado com sucesso"
-            } else {
-                "Falha no login. Verifique suas credenciais."
-            }
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(Injekt.get<Application>(), message, Toast.LENGTH_LONG).show()
-            }
-        }.start()
+        val loginResponse = response.parseAs<AuthResponseDto>()
+        authToken = loginResponse.accessToken
+        return authToken!!
     }
 
     // ========================= Preferences ================================
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val warning = "⚠️ Os dados inseridos nesta seção serão usados somente para realizar o login na fonte."
-        val message = "Insira %s para prosseguir com o acesso aos recursos disponíveis na fonte."
-
-        EditTextPreference(screen.context).apply {
-            key = PREF_EMAIL
-            title = "E-mail"
-            summary = "E-mail de acesso"
-            dialogMessage = buildString {
-                appendLine(message.format("seu e-mail"))
-                append("\n$warning")
-            }
-            setDefaultValue("")
-            setOnPreferenceChangeListener { _, newValue ->
-                preferences.edit().remove(PREF_TOKEN).apply()
-                val password = preferences.getString(PREF_PASSWORD, "") ?: ""
-                checkLogin(newValue as String, password)
-                true
-            }
-        }.let(screen::addPreference)
-
-        EditTextPreference(screen.context).apply {
-            key = PREF_PASSWORD
-            title = "Senha"
-            summary = "Senha de acesso"
-            dialogMessage = buildString {
-                appendLine(message.format("sua senha"))
-                append("\n$warning")
-            }
-            setDefaultValue("")
-            setOnPreferenceChangeListener { _, newValue ->
-                preferences.edit().remove(PREF_TOKEN).apply()
-                val email = preferences.getString(PREF_EMAIL, "") ?: ""
-                checkLogin(email, newValue as String)
-                true
-            }
-        }.let(screen::addPreference)
-
         ListPreference(screen.context).apply {
             key = PREF_GEN_ID
             title = "Gênero padrão"
@@ -334,9 +259,7 @@ class Verdinha : HttpSource(), ConfigurableSource {
     }
 
     companion object {
-        private const val PREF_EMAIL = "pref_email"
-        private const val PREF_PASSWORD = "pref_password"
-        private const val PREF_TOKEN = "pref_token"
+        private const val LOGIN_BODY = """{"login":"gfuzetti67@gmail.com","senha":"236593nox","tipo_usuario":"usuario"}"""
         private const val PREF_GEN_ID = "pref_gen_id"
 
         private val GENRE_LIST = listOf(
