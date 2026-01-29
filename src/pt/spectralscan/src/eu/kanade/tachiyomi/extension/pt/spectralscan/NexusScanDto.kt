@@ -40,7 +40,7 @@ class MangaDetailsDto(
     val author: String? = null,
     val artist: String? = null,
     val status: String,
-    val categories: List<CategoryDto> = emptyList(),
+    val categories: List<CategoryDto>? = null,
     val chapters: List<ChapterDto>? = null,
 )
 
@@ -91,7 +91,7 @@ fun MangaDetailsDto.toSManga() = SManga.create().apply {
     author = this@toSManga.author
     artist = this@toSManga.artist
     status = this@toSManga.status.parseStatus()
-    genre = categories.joinToString { it.name }
+    genre = categories?.joinToString { it.name }
 }
 
 fun ChapterDto.toSChapter(mangaSlug: String) = SChapter.create().apply {
