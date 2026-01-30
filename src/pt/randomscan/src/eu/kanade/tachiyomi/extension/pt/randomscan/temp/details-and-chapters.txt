@@ -1,0 +1,948 @@
+curl ^"https://luratoons.net/api/obra/minha-vida-escolar-fingindo/^" ^
+  -H ^"Accept: */*^" ^
+  -H ^"Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7^" ^
+  -H ^"Cache-Control: no-cache^" ^
+  -H ^"Connection: keep-alive^" ^
+  -b ^"messages=W1siX19qc29uX21lc3NhZ2UiLDAsMjUsIkNvbmVjdGFkbyBjb20gc3VjZXNzbyBjb21vIHFpeWFuYS4iLCIiXV0:1vlnYs:1kAsdfnsLHPJ3LSEKqxFXgFXxWdCrjOCBOLKNQeZ8YQ; csrftoken=ZQzOpcraDySOJCmEe5Dv8tBxzT2kdOa6; sessionid=v2qnm6b13x81yey6qhh6chdoqgov8lwx; cf_clearance=8e0hW9OY8WQ0DGaPet.sb59dyVJoYJobFVBh3C3qEBg-1769777033-1.2.1.1-i._YBIZ64z6UUfe7F2pjGpssQnS82P7MblQQ3cJwN7c0m79YD753.HIQT1ssZOGolTGRANteZYj15Rwk_4GRYBKZwGhCtolcDDT7dfXz2X8GxsJy81twwzxz6HpuuRJu8T6MomRZDh8oAbUA5Y8pJAbMq6TdJc5lDvvTG_Y_DLLNYMYa_6w7fH7URrFuQl7cCACmt0MHQTK09mrC0loRY_nJr9TYH0TDuJQBzFBgQqU^" ^
+  -H ^"Pragma: no-cache^" ^
+  -H ^"Referer: https://luratoons.net/minha-vida-escolar-fingindo/^" ^
+  -H ^"Sec-Fetch-Dest: empty^" ^
+  -H ^"Sec-Fetch-Mode: cors^" ^
+  -H ^"Sec-Fetch-Site: same-origin^" ^
+  -H ^"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36^" ^
+  -H ^"sec-ch-ua: ^\^"Not(A:Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"144^\^", ^\^"Google Chrome^\^";v=^\^"144^\^"^" ^
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^"
+
+  GET /api/obra/minha-vida-escolar-fingindo/ HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7
+Cache-Control: no-cache
+Connection: keep-alive
+Cookie: messages=W1siX19qc29uX21lc3NhZ2UiLDAsMjUsIkNvbmVjdGFkbyBjb20gc3VjZXNzbyBjb21vIHFpeWFuYS4iLCIiXV0:1vlnYs:1kAsdfnsLHPJ3LSEKqxFXgFXxWdCrjOCBOLKNQeZ8YQ; csrftoken=ZQzOpcraDySOJCmEe5Dv8tBxzT2kdOa6; sessionid=v2qnm6b13x81yey6qhh6chdoqgov8lwx; cf_clearance=8e0hW9OY8WQ0DGaPet.sb59dyVJoYJobFVBh3C3qEBg-1769777033-1.2.1.1-i._YBIZ64z6UUfe7F2pjGpssQnS82P7MblQQ3cJwN7c0m79YD753.HIQT1ssZOGolTGRANteZYj15Rwk_4GRYBKZwGhCtolcDDT7dfXz2X8GxsJy81twwzxz6HpuuRJu8T6MomRZDh8oAbUA5Y8pJAbMq6TdJc5lDvvTG_Y_DLLNYMYa_6w7fH7URrFuQl7cCACmt0MHQTK09mrC0loRY_nJr9TYH0TDuJQBzFBgQqU
+Host: luratoons.net
+Pragma: no-cache
+Referer: https://luratoons.net/minha-vida-escolar-fingindo/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-origin
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+sec-ch-ua: "Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+
+{
+    "type": "obra",
+    "id": 17173,
+    "capa": "/media/images/MVE_3.format-webp.width-1000.webp",
+    "titulo": "Minha Vida Escolar Fingindo Ser Um In\u00fatil",
+    "alternativo": "\ud3d0\uae09\uc778 \ucc99\ud588\ub358 \ud559\uad50\uc0dd\ud65c, My School Life Pretending To Be a Worthless Person",
+    "autor": "",
+    "artista": "",
+    "estudio": "",
+    "status": "Em Lan\u00e7amento",
+    "sinopse": "A humanidade descobriu a ess\u00eancia da alma humana, Edeya e estava prestes a atingir a materializa\u00e7\u00e3o. \r\nA sociedade foi constru\u00edda em torno de Edeya, que \u00e9 invulner\u00e1vel a armas convencionais. A humanidade come\u00e7ou a focar no poder de combate de Edeya.\r\nPark Jinsong, o personagem principal, possui uma alma de Rank-F e poder de combate Rank-F. Depois de ser introduzido em um programa militar no ensino m\u00e9dio e ao sistema de ranqueamento, Park Jinsong se tornou um dos mais fracos e sofreu com isso durante dez anos. \r\n\r\nContudo, na realidade, o Edeya que ele despertou \u00e9, na verdade, a \u201cInten\u00e7\u00e3o Assassina Absoluta\u201d, de Rank-S.\r\nPark Jinsong ficou muito perturbado pelo fato de que a ess\u00eancia de sua alma girava em torno de matar as pessoas, mas continuou a viver sua vida enquanto pensava em si mesmo como um Rank-F in\u00fatil. \r\n\r\nSer\u00e1 que Park Jinsung, que possui uma alma assassina, ser\u00e1 capaz de controlar sua inten\u00e7\u00e3o de matar e provar que a alma de algu\u00e9m n\u00e3o pode ser classificada?",
+    "ano": 2023,
+    "rank": 100,
+    "dia": "N\u00e3o Definido",
+    "tipo": "Manhwa",
+    "generos": [
+        {
+            "id": 1,
+            "name": "A\u00e7\u00e3o"
+        },
+        {
+            "id": 3,
+            "name": "Drama"
+        },
+        {
+            "id": 4,
+            "name": "Shounen"
+        }
+    ],
+    "caps": [
+        {
+            "num": 1.0,
+            "data": "2024-04-02T23:03:28.228Z",
+            "slug": "01",
+            "id": 17178
+        },
+        {
+            "num": 2.0,
+            "data": "2024-04-02T23:03:26.332Z",
+            "slug": "02",
+            "id": 17174
+        },
+        {
+            "num": 3.0,
+            "data": "2024-04-02T23:03:27.222Z",
+            "slug": "03",
+            "id": 17175
+        },
+        {
+            "num": 4.0,
+            "data": "2024-04-02T23:03:27.485Z",
+            "slug": "04",
+            "id": 17176
+        },
+        {
+            "num": 5.0,
+            "data": "2024-04-02T23:03:27.877Z",
+            "slug": "05",
+            "id": 17177
+        },
+        {
+            "num": 6.0,
+            "data": "2024-04-02T23:07:05.721Z",
+            "slug": "06",
+            "id": 17180
+        },
+        {
+            "num": 7.0,
+            "data": "2024-04-02T23:07:05.955Z",
+            "slug": "07",
+            "id": 17181
+        },
+        {
+            "num": 8.0,
+            "data": "2024-04-02T23:07:06.118Z",
+            "slug": "08",
+            "id": 17182
+        },
+        {
+            "num": 9.0,
+            "data": "2024-04-02T23:07:06.312Z",
+            "slug": "09",
+            "id": 17183
+        },
+        {
+            "num": 10.0,
+            "data": "2024-04-02T23:07:06.458Z",
+            "slug": "10",
+            "id": 17184
+        },
+        {
+            "num": 11.0,
+            "data": "2024-04-02T23:07:06.620Z",
+            "slug": "11",
+            "id": 17185
+        },
+        {
+            "num": 12.0,
+            "data": "2024-04-02T23:07:06.804Z",
+            "slug": "12",
+            "id": 17186
+        },
+        {
+            "num": 13.0,
+            "data": "2024-04-02T23:07:07.049Z",
+            "slug": "13",
+            "id": 17187
+        },
+        {
+            "num": 14.0,
+            "data": "2024-04-02T23:07:07.298Z",
+            "slug": "14",
+            "id": 17188
+        },
+        {
+            "num": 15.0,
+            "data": "2024-04-02T23:07:04.806Z",
+            "slug": "15",
+            "id": 17179
+        },
+        {
+            "num": 16.0,
+            "data": "2024-04-02T23:09:28.042Z",
+            "slug": "16",
+            "id": 17191
+        },
+        {
+            "num": 17.0,
+            "data": "2024-04-02T23:09:28.653Z",
+            "slug": "17",
+            "id": 17192
+        },
+        {
+            "num": 18.0,
+            "data": "2024-04-02T23:09:29.081Z",
+            "slug": "18",
+            "id": 17193
+        },
+        {
+            "num": 19.0,
+            "data": "2024-04-02T23:09:29.386Z",
+            "slug": "19",
+            "id": 17194
+        },
+        {
+            "num": 20.0,
+            "data": "2024-04-02T23:09:29.782Z",
+            "slug": "20",
+            "id": 17195
+        },
+        {
+            "num": 21.0,
+            "data": "2024-04-02T23:09:30.116Z",
+            "slug": "21",
+            "id": 17196
+        },
+        {
+            "num": 22.0,
+            "data": "2024-04-02T23:09:32.393Z",
+            "slug": "22",
+            "id": 17197
+        },
+        {
+            "num": 23.0,
+            "data": "2024-04-02T23:09:33.547Z",
+            "slug": "23",
+            "id": 17198
+        },
+        {
+            "num": 24.0,
+            "data": "2024-04-02T23:09:25.143Z",
+            "slug": "24",
+            "id": 17189
+        },
+        {
+            "num": 25.0,
+            "data": "2024-04-02T23:09:27.117Z",
+            "slug": "25",
+            "id": 17190
+        },
+        {
+            "num": 26.0,
+            "data": "2024-04-02T23:10:31.648Z",
+            "slug": "26",
+            "id": 17200
+        },
+        {
+            "num": 27.0,
+            "data": "2024-04-02T23:10:32.795Z",
+            "slug": "27",
+            "id": 17201
+        },
+        {
+            "num": 28.0,
+            "data": "2024-04-02T23:10:33.871Z",
+            "slug": "28",
+            "id": 17202
+        },
+        {
+            "num": 29.0,
+            "data": "2024-04-02T23:10:35.570Z",
+            "slug": "29",
+            "id": 17203
+        },
+        {
+            "num": 30.0,
+            "data": "2024-04-02T23:10:36.326Z",
+            "slug": "30",
+            "id": 17204
+        },
+        {
+            "num": 31.0,
+            "data": "2024-04-02T23:10:38.355Z",
+            "slug": "31",
+            "id": 17205
+        },
+        {
+            "num": 32.0,
+            "data": "2024-04-02T23:10:40.863Z",
+            "slug": "32",
+            "id": 17206
+        },
+        {
+            "num": 33.0,
+            "data": "2024-04-02T23:10:42.331Z",
+            "slug": "33",
+            "id": 17207
+        },
+        {
+            "num": 34.0,
+            "data": "2024-04-02T23:10:43.097Z",
+            "slug": "34",
+            "id": 17208
+        },
+        {
+            "num": 35.0,
+            "data": "2024-04-02T23:10:30.278Z",
+            "slug": "35",
+            "id": 17199
+        },
+        {
+            "num": 36.0,
+            "data": "2024-04-02T23:11:25.730Z",
+            "slug": "36",
+            "id": 17210
+        },
+        {
+            "num": 37.0,
+            "data": "2024-04-02T23:11:25.931Z",
+            "slug": "37",
+            "id": 17211
+        },
+        {
+            "num": 38.0,
+            "data": "2024-04-02T23:11:26.120Z",
+            "slug": "38",
+            "id": 17212
+        },
+        {
+            "num": 39.0,
+            "data": "2024-04-02T23:11:26.540Z",
+            "slug": "39",
+            "id": 17213
+        },
+        {
+            "num": 40.0,
+            "data": "2024-04-02T23:11:26.692Z",
+            "slug": "40",
+            "id": 17214
+        },
+        {
+            "num": 41.0,
+            "data": "2024-04-02T23:11:26.873Z",
+            "slug": "41",
+            "id": 17215
+        },
+        {
+            "num": 42.0,
+            "data": "2024-04-02T23:11:27.620Z",
+            "slug": "42",
+            "id": 17216
+        },
+        {
+            "num": 43.0,
+            "data": "2024-04-02T23:11:28.035Z",
+            "slug": "43",
+            "id": 17217
+        },
+        {
+            "num": 44.0,
+            "data": "2024-04-02T23:11:28.357Z",
+            "slug": "44",
+            "id": 17218
+        },
+        {
+            "num": 45.0,
+            "data": "2024-04-02T23:11:25.170Z",
+            "slug": "45",
+            "id": 17209
+        },
+        {
+            "num": 46.0,
+            "data": "2024-04-02T23:12:27.565Z",
+            "slug": "46",
+            "id": 17220
+        },
+        {
+            "num": 47.0,
+            "data": "2024-04-02T23:12:31.345Z",
+            "slug": "47",
+            "id": 17221
+        },
+        {
+            "num": 48.0,
+            "data": "2024-04-02T23:12:35.536Z",
+            "slug": "48",
+            "id": 17222
+        },
+        {
+            "num": 49.0,
+            "data": "2024-04-02T23:12:37.649Z",
+            "slug": "49",
+            "id": 17223
+        },
+        {
+            "num": 50.0,
+            "data": "2024-04-02T23:12:39.278Z",
+            "slug": "50",
+            "id": 17224
+        },
+        {
+            "num": 51.0,
+            "data": "2024-04-02T23:12:43.151Z",
+            "slug": "51",
+            "id": 17225
+        },
+        {
+            "num": 52.0,
+            "data": "2024-04-02T23:12:22.849Z",
+            "slug": "52",
+            "id": 17219
+        },
+        {
+            "num": 53.0,
+            "data": "2024-04-04T00:42:23.782Z",
+            "slug": "53",
+            "id": 19430
+        },
+        {
+            "num": 54.0,
+            "data": "2024-04-19T18:22:38.786Z",
+            "slug": "54",
+            "id": 21099
+        },
+        {
+            "num": 55.0,
+            "data": "2024-04-21T18:53:08.325Z",
+            "slug": "55",
+            "id": 22649
+        },
+        {
+            "num": 56.0,
+            "data": "2024-04-21T18:53:22.481Z",
+            "slug": "56",
+            "id": 22650
+        },
+        {
+            "num": 57.0,
+            "data": "2024-04-23T18:36:49.153Z",
+            "slug": "57",
+            "id": 28878
+        },
+        {
+            "num": 58.0,
+            "data": "2024-04-24T14:38:24.727Z",
+            "slug": "58",
+            "id": 29622
+        },
+        {
+            "num": 59.0,
+            "data": "2024-04-24T22:35:43.244Z",
+            "slug": "59",
+            "id": 29637
+        },
+        {
+            "num": 60.0,
+            "data": "2024-05-04T16:47:54.457Z",
+            "slug": "60",
+            "id": 32660
+        },
+        {
+            "num": 61.0,
+            "data": "2024-05-12T21:50:44.186Z",
+            "slug": "61",
+            "id": 33073
+        },
+        {
+            "num": 62.0,
+            "data": "2024-05-12T21:53:12.251Z",
+            "slug": "62",
+            "id": 33074
+        },
+        {
+            "num": 63.0,
+            "data": "2024-06-02T01:47:07.345Z",
+            "slug": "63",
+            "id": 34193
+        },
+        {
+            "num": 64.0,
+            "data": "2024-06-02T01:48:41.276Z",
+            "slug": "64",
+            "id": 34194
+        },
+        {
+            "num": 65.0,
+            "data": "2024-06-14T17:02:06.183Z",
+            "slug": "65",
+            "id": 34308
+        },
+        {
+            "num": 66.0,
+            "data": "2024-06-14T17:02:44.502Z",
+            "slug": "66",
+            "id": 34309
+        },
+        {
+            "num": 67.0,
+            "data": "2024-06-19T15:11:23.919Z",
+            "slug": "67",
+            "id": 34421
+        },
+        {
+            "num": 68.0,
+            "data": "2024-07-02T01:04:32.106Z",
+            "slug": "68",
+            "id": 38349
+        },
+        {
+            "num": 69.0,
+            "data": "2024-07-02T01:05:21.542Z",
+            "slug": "69",
+            "id": 38350
+        },
+        {
+            "num": 70.0,
+            "data": "2024-07-03T01:24:00.811Z",
+            "slug": "70",
+            "id": 38399
+        },
+        {
+            "num": 71.0,
+            "data": "2024-07-09T21:15:58.692Z",
+            "slug": "71",
+            "id": 39044
+        },
+        {
+            "num": 72.0,
+            "data": "2024-07-16T17:05:11.023Z",
+            "slug": "72",
+            "id": 39366
+        },
+        {
+            "num": 73.0,
+            "data": "2024-07-23T16:31:00.994Z",
+            "slug": "73",
+            "id": 39859
+        },
+        {
+            "num": 74.0,
+            "data": "2024-07-30T16:47:13.407Z",
+            "slug": "74",
+            "id": 40422
+        },
+        {
+            "num": 75.0,
+            "data": "2024-08-06T18:20:12.309Z",
+            "slug": "75",
+            "id": 40753
+        },
+        {
+            "num": 76.0,
+            "data": "2024-08-15T16:49:33.929Z",
+            "slug": "76",
+            "id": 40858
+        },
+        {
+            "num": 77.0,
+            "data": "2024-08-22T01:23:01.001Z",
+            "slug": "77",
+            "id": 41123
+        },
+        {
+            "num": 78.0,
+            "data": "2024-08-27T19:29:16.509Z",
+            "slug": "78",
+            "id": 41217
+        },
+        {
+            "num": 79.0,
+            "data": "2024-09-03T20:26:30.792Z",
+            "slug": "79",
+            "id": 42097
+        },
+        {
+            "num": 80.0,
+            "data": "2024-09-10T20:27:44.217Z",
+            "slug": "80",
+            "id": 42395
+        },
+        {
+            "num": 81.0,
+            "data": "2024-09-17T20:41:30.279Z",
+            "slug": "81",
+            "id": 42651
+        },
+        {
+            "num": 82.0,
+            "data": "2024-09-24T20:08:08.187Z",
+            "slug": "82",
+            "id": 43195
+        },
+        {
+            "num": 83.0,
+            "data": "2024-10-01T18:44:33.835Z",
+            "slug": "83",
+            "id": 43428
+        },
+        {
+            "num": 84.0,
+            "data": "2024-10-09T14:56:58.775Z",
+            "slug": "84",
+            "id": 43912
+        },
+        {
+            "num": 85.0,
+            "data": "2024-10-15T23:34:09.755Z",
+            "slug": "85",
+            "id": 44208
+        },
+        {
+            "num": 86.0,
+            "data": "2024-10-22T22:09:11.018Z",
+            "slug": "86",
+            "id": 44600
+        },
+        {
+            "num": 87.0,
+            "data": "2024-10-29T22:41:47.344Z",
+            "slug": "87",
+            "id": 44714
+        },
+        {
+            "num": 88.0,
+            "data": "2024-11-05T22:28:36.530Z",
+            "slug": "88",
+            "id": 45218
+        },
+        {
+            "num": 89.0,
+            "data": "2024-11-12T21:32:57.556Z",
+            "slug": "89",
+            "id": 47024
+        },
+        {
+            "num": 90.0,
+            "data": "2024-11-27T20:11:06.264Z",
+            "slug": "90",
+            "id": 49132
+        },
+        {
+            "num": 91.0,
+            "data": "2024-11-27T20:11:06.490Z",
+            "slug": "91",
+            "id": 49133
+        },
+        {
+            "num": 92.0,
+            "data": "2024-12-03T19:25:14.603Z",
+            "slug": "92",
+            "id": 49498
+        },
+        {
+            "num": 93.0,
+            "data": "2024-12-13T13:09:07.458Z",
+            "slug": "93",
+            "id": 49849
+        },
+        {
+            "num": 94.0,
+            "data": "2025-01-16T11:26:39.480Z",
+            "slug": "94",
+            "id": 52288
+        },
+        {
+            "num": 95.0,
+            "data": "2025-01-16T11:26:39.135Z",
+            "slug": "95",
+            "id": 52286
+        },
+        {
+            "num": 96.0,
+            "data": "2025-01-16T11:26:39.328Z",
+            "slug": "96",
+            "id": 52287
+        },
+        {
+            "num": 97.0,
+            "data": "2025-01-21T21:09:24.911Z",
+            "slug": "97",
+            "id": 52810
+        },
+        {
+            "num": 98.0,
+            "data": "2025-01-31T20:01:45.352Z",
+            "slug": "98",
+            "id": 53205
+        },
+        {
+            "num": 99.0,
+            "data": "2025-02-04T20:46:18.375Z",
+            "slug": "99",
+            "id": 53296
+        },
+        {
+            "num": 100.0,
+            "data": "2025-02-11T21:54:10.987Z",
+            "slug": "100",
+            "id": 53586
+        },
+        {
+            "num": 101.0,
+            "data": "2025-02-18T23:07:07.337Z",
+            "slug": "101",
+            "id": 53728
+        },
+        {
+            "num": 102.0,
+            "data": "2025-02-26T17:42:48.546Z",
+            "slug": "102",
+            "id": 53941
+        },
+        {
+            "num": 103.0,
+            "data": "2025-03-05T18:14:42.540Z",
+            "slug": "103",
+            "id": 54534
+        },
+        {
+            "num": 104.0,
+            "data": "2025-03-14T01:21:18.231Z",
+            "slug": "104",
+            "id": 54735
+        },
+        {
+            "num": 105.0,
+            "data": "2025-03-18T21:26:42.750Z",
+            "slug": "105",
+            "id": 55176
+        },
+        {
+            "num": 106.0,
+            "data": "2025-03-26T12:25:49.479Z",
+            "slug": "106",
+            "id": 56625
+        },
+        {
+            "num": 107.0,
+            "data": "2025-04-01T18:38:34.246Z",
+            "slug": "107",
+            "id": 56853
+        },
+        {
+            "num": 108.0,
+            "data": "2025-04-09T22:03:00.052Z",
+            "slug": "108",
+            "id": 57605
+        },
+        {
+            "num": 109.0,
+            "data": "2025-04-15T18:14:14.049Z",
+            "slug": "109",
+            "id": 58153
+        },
+        {
+            "num": 110.0,
+            "data": "2025-04-22T20:01:55.736Z",
+            "slug": "110",
+            "id": 58427
+        },
+        {
+            "num": 111.0,
+            "data": "2025-04-29T21:21:05.171Z",
+            "slug": "111",
+            "id": 59345
+        },
+        {
+            "num": 112.0,
+            "data": "2025-05-07T18:35:50.712Z",
+            "slug": "112",
+            "id": 59936
+        },
+        {
+            "num": 113.0,
+            "data": "2025-05-14T21:10:16.837Z",
+            "slug": "113",
+            "id": 60077
+        },
+        {
+            "num": 114.0,
+            "data": "2025-05-27T19:34:37.555Z",
+            "slug": "114",
+            "id": 60425
+        },
+        {
+            "num": 115.0,
+            "data": "2025-05-27T18:51:16.270Z",
+            "slug": "115",
+            "id": 60422
+        },
+        {
+            "num": 116.0,
+            "data": "2025-06-03T17:18:16.670Z",
+            "slug": "116",
+            "id": 60708
+        },
+        {
+            "num": 117.0,
+            "data": "2025-06-10T22:59:26.633Z",
+            "slug": "117",
+            "id": 60878
+        },
+        {
+            "num": 118.0,
+            "data": "2025-06-17T19:31:25.944Z",
+            "slug": "118",
+            "id": 61027
+        },
+        {
+            "num": 119.0,
+            "data": "2025-06-24T20:03:07.165Z",
+            "slug": "119",
+            "id": 61214
+        },
+        {
+            "num": 120.0,
+            "data": "2025-07-01T18:45:08.960Z",
+            "slug": "120",
+            "id": 61572
+        },
+        {
+            "num": 121.0,
+            "data": "2025-07-09T15:07:30.435Z",
+            "slug": "121",
+            "id": 61848
+        },
+        {
+            "num": 122.0,
+            "data": "2025-07-16T18:56:14.131Z",
+            "slug": "122",
+            "id": 61982
+        },
+        {
+            "num": 123.0,
+            "data": "2025-07-22T19:13:07.403Z",
+            "slug": "123",
+            "id": 62168
+        },
+        {
+            "num": 124.0,
+            "data": "2025-07-30T01:01:23.262Z",
+            "slug": "124",
+            "id": 62602
+        },
+        {
+            "num": 125.0,
+            "data": "2025-08-05T18:59:54.755Z",
+            "slug": "125",
+            "id": 63410
+        },
+        {
+            "num": 126.0,
+            "data": "2025-08-14T00:03:46.707Z",
+            "slug": "126",
+            "id": 63546
+        },
+        {
+            "num": 127.0,
+            "data": "2025-08-19T18:41:04.952Z",
+            "slug": "127",
+            "id": 63688
+        },
+        {
+            "num": 128.0,
+            "data": "2025-08-26T18:46:08.169Z",
+            "slug": "128",
+            "id": 63812
+        },
+        {
+            "num": 129.0,
+            "data": "2025-09-02T18:57:07.902Z",
+            "slug": "129",
+            "id": 64000
+        },
+        {
+            "num": 130.0,
+            "data": "2025-09-09T20:25:12.033Z",
+            "slug": "130",
+            "id": 64142
+        },
+        {
+            "num": 131.0,
+            "data": "2025-09-16T20:50:36.653Z",
+            "slug": "131",
+            "id": 64345
+        },
+        {
+            "num": 132.0,
+            "data": "2025-09-24T16:50:27.907Z",
+            "slug": "132",
+            "id": 64488
+        },
+        {
+            "num": 133.0,
+            "data": "2025-10-02T14:29:21.646Z",
+            "slug": "133",
+            "id": 65020
+        },
+        {
+            "num": 134.0,
+            "data": "2025-10-12T18:57:51.627Z",
+            "slug": "134",
+            "id": 65254
+        },
+        {
+            "num": 135.0,
+            "data": "2025-10-14T19:54:22.379Z",
+            "slug": "135",
+            "id": 65295
+        },
+        {
+            "num": 136.0,
+            "data": "2025-11-04T23:34:15.601Z",
+            "slug": "136",
+            "id": 65994
+        },
+        {
+            "num": 137.0,
+            "data": "2025-11-04T23:54:38.155Z",
+            "slug": "137",
+            "id": 65995
+        },
+        {
+            "num": 138.0,
+            "data": "2025-11-14T22:14:40.895Z",
+            "slug": "138",
+            "id": 66311
+        },
+        {
+            "num": 139.0,
+            "data": "2025-11-18T21:47:06.411Z",
+            "slug": "139",
+            "id": 66392
+        },
+        {
+            "num": 140.0,
+            "data": "2025-11-26T20:39:31.122Z",
+            "slug": "140",
+            "id": 66619
+        },
+        {
+            "num": 141.0,
+            "data": "2025-12-02T18:27:00.712Z",
+            "slug": "141",
+            "id": 66736
+        },
+        {
+            "num": 142.0,
+            "data": "2025-12-09T18:08:10.637Z",
+            "slug": "142",
+            "id": 66973
+        },
+        {
+            "num": 143.0,
+            "data": "2025-12-16T18:38:45.008Z",
+            "slug": "143",
+            "id": 67110
+        },
+        {
+            "num": 144.0,
+            "data": "2025-12-30T18:28:12.428Z",
+            "slug": "144",
+            "id": 67417
+        },
+        {
+            "num": 145.0,
+            "data": "2026-01-07T19:32:31.407Z",
+            "slug": "145",
+            "id": 67567
+        },
+        {
+            "num": 146.0,
+            "data": "2026-01-13T19:25:28.822Z",
+            "slug": "146",
+            "id": 67676
+        },
+        {
+            "num": 147.0,
+            "data": "2026-01-22T20:40:55.497Z",
+            "slug": "147",
+            "id": 67855
+        }
+    ]
+}

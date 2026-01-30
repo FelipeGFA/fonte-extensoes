@@ -1,0 +1,314 @@
+curl ^"https://luratoons.net/api/main/?part=1^" ^
+  -X ^"POST^" ^
+  -H ^"Accept: */*^" ^
+  -H ^"Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7^" ^
+  -H ^"Cache-Control: no-cache^" ^
+  -H ^"Connection: keep-alive^" ^
+  -H ^"Content-Length: 0^" ^
+  -b ^"messages=W1siX19qc29uX21lc3NhZ2UiLDAsMjUsIkNvbmVjdGFkbyBjb20gc3VjZXNzbyBjb21vIHFpeWFuYS4iLCIiXV0:1vlnYs:1kAsdfnsLHPJ3LSEKqxFXgFXxWdCrjOCBOLKNQeZ8YQ; csrftoken=ZQzOpcraDySOJCmEe5Dv8tBxzT2kdOa6; sessionid=v2qnm6b13x81yey6qhh6chdoqgov8lwx; cf_clearance=8e0hW9OY8WQ0DGaPet.sb59dyVJoYJobFVBh3C3qEBg-1769777033-1.2.1.1-i._YBIZ64z6UUfe7F2pjGpssQnS82P7MblQQ3cJwN7c0m79YD753.HIQT1ssZOGolTGRANteZYj15Rwk_4GRYBKZwGhCtolcDDT7dfXz2X8GxsJy81twwzxz6HpuuRJu8T6MomRZDh8oAbUA5Y8pJAbMq6TdJc5lDvvTG_Y_DLLNYMYa_6w7fH7URrFuQl7cCACmt0MHQTK09mrC0loRY_nJr9TYH0TDuJQBzFBgQqU; csac=eyIxNzE3MyI6IjEwIiwidXNlciI6Ijc5NDYxIiwibGFzdCI6IjE3Njk3NzcxMDY4MDQifQ.4d30c4c87589252822725a189cbfef305d30eb7408f9c4a8551ebe80df6281f7^" ^
+  -H ^"Origin: https://luratoons.net^" ^
+  -H ^"Pragma: no-cache^" ^
+  -H ^"Referer: https://luratoons.net/^" ^
+  -H ^"Sec-Fetch-Dest: empty^" ^
+  -H ^"Sec-Fetch-Mode: cors^" ^
+  -H ^"Sec-Fetch-Site: same-origin^" ^
+  -H ^"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36^" ^
+  -H ^"X-CSRFToken: ZQzOpcraDySOJCmEe5Dv8tBxzT2kdOa6^" ^
+  -H ^"sec-ch-ua: ^\^"Not(A:Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"144^\^", ^\^"Google Chrome^\^";v=^\^"144^\^"^" ^
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^"
+
+  {
+    "slides": [],
+    "lancamentos": [
+        {
+            "id": 53086,
+            "title": "Mago Prism\u00e1tico Genial",
+            "capa": "/media/images/Mago_Prismatico_CAPA.format-webp.width-1000.webp",
+            "slug": "mago-prism\u00e1tico-genial",
+            "caps": [
+                {
+                    "date": "2026-01-29T13:36:04.842Z",
+                    "num": 61.0,
+                    "slug": "61"
+                },
+                {
+                    "date": "2025-11-17T17:08:59.707Z",
+                    "num": 60.0,
+                    "slug": "60"
+                }
+            ]
+        },
+        {
+            "id": 53307,
+            "title": "Ess\u00eancia da Selva",
+            "capa": "/media/images/Essencia_da_Selva_CAPA.format-webp.width-1000.webp",
+            "slug": "ess\u00eancia-da-selva",
+            "caps": [
+                {
+                    "date": "2026-01-29T13:15:34.046Z",
+                    "num": 195.0,
+                    "slug": "195"
+                },
+                {
+                    "date": "2026-01-22T13:37:42.793Z",
+                    "num": 194.0,
+                    "slug": "194"
+                }
+            ]
+        },
+        {
+            "id": 58867,
+            "title": "Retorno do Her\u00f3i",
+            "capa": "/media/images/Retorno_do_Heroi_CAPA.format-webp.width-1000.webp",
+            "slug": "retorno-do-her\u00f3i",
+            "caps": [
+                {
+                    "date": "2026-01-29T01:43:33.475Z",
+                    "num": 137.0,
+                    "slug": "137"
+                },
+                {
+                    "date": "2026-01-16T15:52:38.012Z",
+                    "num": 136.0,
+                    "slug": "136"
+                }
+            ]
+        },
+        {
+            "id": 32878,
+            "title": "Retorno do Her\u00f3i de Classe Desastre",
+            "capa": "/media/images/Capa_Retorno_do_Heroi_DE_Classe_.format-webp.width-1000.webp",
+            "slug": "retorno-do-heroi-de-classe-desastre",
+            "caps": [
+                {
+                    "date": "2026-01-28T22:59:14.580Z",
+                    "num": 161.0,
+                    "slug": "161"
+                },
+                {
+                    "date": "2026-01-21T19:00:55.750Z",
+                    "num": 160.0,
+                    "slug": "160"
+                }
+            ]
+        },
+        {
+            "id": 48043,
+            "title": "Funcion\u00e1rio P\u00fablico Especial",
+            "capa": "/media/images/Funcionario_Publico_Especial_CAP.format-webp.width-1000.webp",
+            "slug": "funcion\u00e1rio-p\u00fablico-especial",
+            "caps": [
+                {
+                    "date": "2026-01-28T20:30:43.091Z",
+                    "num": 55.0,
+                    "slug": "55"
+                },
+                {
+                    "date": "2026-01-28T20:30:43.549Z",
+                    "num": 54.0,
+                    "slug": "54"
+                }
+            ]
+        },
+        {
+            "id": 62620,
+            "title": "Sobrevivendo no Jogo como um B\u00e1rbaro",
+            "capa": "/media/images/Sobrevivendo_no_Jogo_como_um_Bar_4O7kjOZ.format-webp.width-1000.webp",
+            "slug": "sobrevivendo-no-jogo-como-um-b\u00e1rbaro",
+            "caps": [
+                {
+                    "date": "2026-01-28T20:17:00.184Z",
+                    "num": 140.0,
+                    "slug": "140"
+                },
+                {
+                    "date": "2026-01-21T20:19:15.600Z",
+                    "num": 139.0,
+                    "slug": "139"
+                }
+            ]
+        },
+        {
+            "id": 32158,
+            "title": "Me Escolha!",
+            "capa": "/media/images/Me_Escolha.format-webp.width-1000.webp",
+            "slug": "me-escolh",
+            "caps": [
+                {
+                    "date": "2026-01-28T19:09:36.581Z",
+                    "num": 186.0,
+                    "slug": "186"
+                },
+                {
+                    "date": "2026-01-21T17:01:27.225Z",
+                    "num": 185.0,
+                    "slug": "185"
+                }
+            ]
+        },
+        {
+            "id": 49687,
+            "title": "Eu Dominei a Academia Com uma \u00danica Faca de Sashimi",
+            "capa": "/media/images/Eu_Dominei_a_Academia_Com_uma_Un_HA8eYwM.format-webp.width-1000.webp",
+            "slug": "eu-dominei-a-academia-com-uma-\u00fanica-faca-de-sashimi",
+            "caps": [
+                {
+                    "date": "2026-01-28T18:27:45.787Z",
+                    "num": 64.0,
+                    "slug": "64"
+                },
+                {
+                    "date": "2026-01-21T20:01:27.394Z",
+                    "num": 63.0,
+                    "slug": "63"
+                }
+            ]
+        },
+        {
+            "id": 45237,
+            "title": "O Antigo Soberano da Eternidade",
+            "capa": "/media/images/O_Melhor_Engenheiro_do_Mundo_CAP_D6GaseW.format-webp.width-1000.webp",
+            "slug": "o-antigo-soberano-da-eternidade",
+            "caps": [
+                {
+                    "date": "2026-01-28T18:27:38.494Z",
+                    "num": 496.0,
+                    "slug": "496"
+                },
+                {
+                    "date": "2026-01-28T18:27:38.241Z",
+                    "num": 495.0,
+                    "slug": "495"
+                }
+            ]
+        },
+        {
+            "id": 38037,
+            "title": "Eu Sou o Vil\u00e3o Predestinado",
+            "capa": "/media/images/Eu_sou_o_Vilao_Predestinado_Capa.format-webp.width-1000.webp",
+            "slug": "eu-sou-o-vilao-predestinado",
+            "caps": [
+                {
+                    "date": "2026-01-28T18:27:28.971Z",
+                    "num": 307.0,
+                    "slug": "307"
+                },
+                {
+                    "date": "2026-01-26T23:13:28.388Z",
+                    "num": 306.0,
+                    "slug": "306"
+                }
+            ]
+        },
+        {
+            "id": 17242,
+            "title": "Miss\u00f5es na Vida Real",
+            "capa": "/media/images/Missoes_na_vida_Real_CAPANOVA.format-webp.width-1000.webp",
+            "slug": "missoes-na-vida-rea",
+            "caps": [
+                {
+                    "date": "2026-01-28T16:51:37.465Z",
+                    "num": 190.0,
+                    "slug": "190"
+                },
+                {
+                    "date": "2026-01-21T17:06:57.713Z",
+                    "num": 189.0,
+                    "slug": "189"
+                }
+            ]
+        },
+        {
+            "id": 31162,
+            "title": "Nanotecnologia Marcial",
+            "capa": "/media/images/Nanotecnologia_Marcial_Capa_01.format-webp.width-1000.webp",
+            "slug": "nanotecnologia-marcia",
+            "caps": [
+                {
+                    "date": "2026-01-28T15:06:24.663Z",
+                    "num": 297.0,
+                    "slug": "297"
+                },
+                {
+                    "date": "2026-01-21T15:12:05.721Z",
+                    "num": 296.0,
+                    "slug": "296"
+                }
+            ]
+        },
+        {
+            "id": 32866,
+            "title": "Ceifador da Lua Cheia",
+            "capa": "/media/images/Ceifador_da_Lua_Cheia_CAPA.format-webp.width-1000.webp",
+            "slug": "o-ceifador-da-lua-cheia",
+            "caps": [
+                {
+                    "date": "2026-01-28T14:40:01.370Z",
+                    "num": 124.0,
+                    "slug": "124"
+                },
+                {
+                    "date": "2026-01-21T17:31:33.904Z",
+                    "num": 123.0,
+                    "slug": "123"
+                }
+            ]
+        },
+        {
+            "id": 38329,
+            "title": "O Mago Negro que Retorna Ap\u00f3s 66666 Anos",
+            "capa": "/media/images/Mago_Negro_Retorna_apos_66666_an_ZW2eB4N.format-webp.width-1000.webp",
+            "slug": "o-mago-negro-que-retorna-apos-66666-anos",
+            "caps": [
+                {
+                    "date": "2026-01-27T22:42:01.406Z",
+                    "num": 168.0,
+                    "slug": "168"
+                },
+                {
+                    "date": "2026-01-20T23:13:42.675Z",
+                    "num": 167.0,
+                    "slug": "167"
+                }
+            ]
+        },
+        {
+            "id": 31160,
+            "title": "Ponto de Vista do Leitor Onisciente",
+            "capa": "/media/images/Capa_Ponto_de_Vista_do_Leitor.format-webp.width-1000.webp",
+            "slug": "ponto-de-vista-do-leitor-oniscient",
+            "caps": [
+                {
+                    "date": "2026-01-27T22:24:13.767Z",
+                    "num": 299.0,
+                    "slug": "299"
+                },
+                {
+                    "date": "2026-01-23T22:14:03.077Z",
+                    "num": 298.0,
+                    "slug": "298"
+                }
+            ]
+        },
+        {
+            "id": 31163,
+            "title": "O Mundo Ap\u00f3s a Queda",
+            "capa": "/media/images/O_Mundo_Apos_o_Fim_CAPA.format-webp.width-1000.webp",
+            "slug": "o-mundo-apos-a-qued",
+            "caps": [
+                {
+                    "date": "2026-01-27T21:35:06.757Z",
+                    "num": 219.0,
+                    "slug": "219"
+                },
+                {
+                    "date": "2026-01-20T01:09:00.867Z",
+                    "num": 218.0,
+                    "slug": "218"
+                }
+            ]
+        }
+    ],
+    "top_10": []
+}

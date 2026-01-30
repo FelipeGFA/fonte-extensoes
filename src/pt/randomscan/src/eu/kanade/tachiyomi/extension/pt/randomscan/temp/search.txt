@@ -1,0 +1,27 @@
+curl ^"https://luratoons.net/api/autocomplete/apar/^" ^
+  -H ^"accept: application/json, text/plain, */*^" ^
+  -H ^"accept-language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7^" ^
+  -H ^"cache-control: no-cache^" ^
+  -b ^"cf_clearance=aInWFYncp9Ec5OCuyFndsmfq3t6IWmsDnaTdLoqvUYU-1769773688-1.2.1.1-oivRpGgG9y1hFSxmuV.UXBorFB.qMniKiBJBKS7F17kFaeIWTNqdgtf3vll.2.VGoDadcl9ZwiE..mt7a89fW8HiHW8ZXzhL3XJNzijMlMBMpCbwpNEf9gF7GOoFfmdt6hryoLlN01yqqUzzR.qiPBPBiCCB601L_RNXs5CRn6YOrwjj0PJn3oz6QO3mWhdLdsPzMYQZ_mpBeEbyqZ4jfmnlU6nf4zZEnx9cDcg7o8k; messages=W1siX19qc29uX21lc3NhZ2UiLDAsMjUsIkNvbmVjdGFkbyBjb20gc3VjZXNzbyBjb21vIHFpeWFuYS4iLCIiXV0:1vln0k:36GvmV8z5mF3GMOaRhEEhz_eU0nElILfMK4K64Ms74E; csrftoken=2a26itfivNDdb1gzLQaPYOHjiAs574UQ; sessionid=q9hf3a868nablhjmww99fbqcauibicdu^" ^
+  -H ^"dnt: 1^" ^
+  -H ^"pragma: no-cache^" ^
+  -H ^"priority: u=1, i^" ^
+  -H ^"referer: https://luratoons.net/^" ^
+  -H ^"sec-ch-ua: ^\^"Not(A:Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"144^\^", ^\^"Google Chrome^\^";v=^\^"144^\^"^" ^
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+  -H ^"sec-fetch-dest: empty^" ^
+  -H ^"sec-fetch-mode: cors^" ^
+  -H ^"sec-fetch-site: same-origin^" ^
+  -H ^"user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36^"
+
+  {
+    "obras": [
+        {
+            "id": 29669,
+            "slug": "aparencias-enganam",
+            "titulo": "Apar\u00eancias",
+            "capa": "/media/images/Aparencias_Capa.format-webp.width-1000.webp"
+        }
+    ]
+}

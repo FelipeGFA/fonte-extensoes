@@ -1,0 +1,64 @@
+fetch("https://luratoons.net/download/50315/811/0/?api=1", {
+  "headers": {
+    "accept": "application/json, text/plain, */*",
+    "accept-language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "cache-control": "no-cache",
+    "pragma": "no-cache",
+    "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpIjo3OTQ2MSwibyI6NTAzMTUsImMiOiI4MTEiLCJtIjo1LCJleHAiOjE3Njk3ODEyODh9.cM_U5LqRFLQiJzV93qcSMNaFTwThY56cQjBdNCp6QSs"
+  },
+  "referrer": "https://luratoons.net/imperador-m%C3%A1gico/811/",
+  "body": null,
+  "method": "GET",
+  "mode": "cors",
+  "credentials": "include"
+});
+
+Request Headers:
+GET /download/50315/811/0/?api=1 HTTP/1.1
+Accept: application/json, text/plain, */*
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7
+Cache-Control: no-cache
+Connection: keep-alive
+Cookie: messages=.eJyLjlaKj88qzs-Lz00tLk5MT1XSMdAxMtVRcs7PS00uSUzJV0jOz1UoLk0GSoPZ-QqFmZWJeYl6SjpKSrE6uPSH5SfHlBoYpCYqFCdmlhJQTKRlsQC6Ejkr:1vlop6:DWpQW2eg0vE26sTrJER2Z19Er98lRiG8WFAZxv3eedc; csrftoken=mwzoUfxXoFrN5Y9Vh0023aH9osLrtPW0; sessionid=xsuvgwrc2c4x1u29zklbnm6gnimh97mr; cf_clearance=54j5h4ycI6Hv3wChavOrK1qe8qYkhA.9zLX9MPE4RkI-1769780801-1.2.1.1-3sM9PghAYWj2j24VEfqmNJesy5Bl1q5TL_eGaNopwtv.uHGZ8U5yQtWDw29.Jerg0AWbY_rDciRfhevHPSBSKejGyv6WRW20LlHB5rlcyPyCAimxNG2vwupA3kHd0DeAE361kZVm3SzlVici9K8HJZPcso94glUqRTqqD8Ch46yMU3.dGyCyytsBoccIHcd42bdW1falC7R2ZnIMfRaOaH.ifIs_nA8Yu9dUAk9FRkQ
+Host: luratoons.net
+Pragma: no-cache
+Referer: https://luratoons.net/imperador-m%C3%A1gico/811/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-origin
+Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpIjo3OTQ2MSwibyI6NTAzMTUsImMiOiI4MTEiLCJtIjo1LCJleHAiOjE3Njk3ODEyODh9.cM_U5LqRFLQiJzV93qcSMNaFTwThY56cQjBdNCp6QSs
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+sec-ch-ua: "Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+
+Response Headers:
+HTTP/1.1 200 OK
+Date: Fri, 30 Jan 2026 13:54:46 GMT
+Content-Type: application/octet-stream
+Content-Length: 924720
+Connection: keep-alive
+Set-Cookie: csac=eyI1MDMxNSI6IjAiLCJ1c2VyIjoiNzk0NjEiLCJsYXN0IjoiMTc2OTc4MTI4NjI0NyJ9.2641342edce8a6edd68a58bb9895c9af39c5737b8ad22aa6dde97f101df80dc6; HttpOnly; Secure; Max-Age=600; Path=/
+spend: 0.024
+Strict-Transport-Security: max-age=15552000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+Vary: accept-encoding
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Xb7KW8UIpSaM52K%2FTQeKYSiZ8XbOoZDDHLIL98l7wBQrll7ahQt%2BDPh%2BhyHy8JZyXGtBfkbLOhReXaClV8ZHKkrU3%2FCrKWEORfpNGA%3D%3D"}]}
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Opener-Policy: same-origin
+X-Robots-Tag: notranslate, noimageindex, nofollow
+X-Robots-Tag: noindex
+Server: cloudflare
+CF-RAY: 9c61768f0cb50b84-GRU
+
+Response:
+
+(octet stream)

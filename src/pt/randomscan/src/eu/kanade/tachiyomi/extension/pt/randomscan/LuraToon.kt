@@ -1,18 +1,11 @@
 package eu.kanade.tachiyomi.extension.pt.randomscan
 
-import android.content.SharedPreferences
+import android.webkit.CookieManager
+import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.extension.pt.randomscan.dto.Capitulo
-import eu.kanade.tachiyomi.extension.pt.randomscan.dto.CapituloPagina
-import eu.kanade.tachiyomi.extension.pt.randomscan.dto.MainPage
-import eu.kanade.tachiyomi.extension.pt.randomscan.dto.Manga
-import eu.kanade.tachiyomi.extension.pt.randomscan.dto.SearchResponse
-import eu.kanade.tachiyomi.lib.randomua.addRandomUAPreferenceToScreen
-import eu.kanade.tachiyomi.lib.randomua.getPrefCustomUA
-import eu.kanade.tachiyomi.lib.randomua.getPrefUAType
-import eu.kanade.tachiyomi.lib.randomua.setRandomUserAgent
+import eu.kanade.tachiyomi.lib.dataimage.DataImageInterceptor
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.asObservable
+import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -22,166 +15,317 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import keiyoushi.utils.getPreferencesLazy
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import okhttp3.Interceptor
+import keiyoushi.utils.parseAs
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.FormBody
+import okhttp3.Headers
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.Response
-import rx.Observable
-import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.TimeZone
-import kotlin.getValue
 
 class LuraToon : HttpSource(), ConfigurableSource {
-    override val baseUrl = "https://luratoons.net"
+
     override val name = "Lura Toon"
+
+    override val baseUrl = "https://luratoons.net"
+
     override val lang = "pt-BR"
+
     override val supportsLatest = true
-    override val versionId = 2
 
-    private val json: Json by injectLazy()
+    private val preferences by getPreferencesLazy()
 
-    private val preferences: SharedPreferences by getPreferencesLazy()
+    private val cookieStore = mutableMapOf<String, MutableList<Cookie>>()
 
-    override val client = network.cloudflareClient
-        .newBuilder()
-        .addInterceptor(::loggedVerifyInterceptor)
-        .addInterceptor(LuraZipInterceptor()::zipImageInterceptor)
-        .rateLimit(3)
-        .setRandomUserAgent(
-            preferences.getPrefUAType(),
-            preferences.getPrefCustomUA(),
-        )
-        .build()
-
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/api/main/?part=${page - 1}", headers)
-    override fun popularMangaRequest(page: Int) = GET("$baseUrl/api/main/?part=${page - 1}", headers)
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList) = GET("$baseUrl/api/autocomplete/$query", headers)
-    override fun chapterListRequest(manga: SManga) = GET("$baseUrl/api/obra/${manga.url.trimStart('/')}", headers)
-    override fun mangaDetailsRequest(manga: SManga) = chapterListRequest(manga)
-
-    override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        addRandomUAPreferenceToScreen(screen)
-    }
-
-    override fun mangaDetailsParse(response: Response) = SManga.create().apply {
-        val data = response.parseAs<Manga>()
-        title = data.titulo
-        author = data.autor
-        artist = data.artista
-        genre = data.generos.joinToString(", ") { it.name }
-        status = when (data.status) {
-            "Em Lançamento" -> SManga.ONGOING
-            "Finalizado" -> SManga.COMPLETED
-            else -> SManga.UNKNOWN
-        }
-        thumbnail_url = "$baseUrl${data.capa}"
-
-        val category = data.tipo
-        val synopsis = data.sinopse
-        description = "Tipo: $category\n\n$synopsis"
-    }
-
-    private inline fun <reified T> Response.parseAs(): T {
-        return json.decodeFromString<T>(body.string())
-    }
-
-    override fun latestUpdatesParse(response: Response): MangasPage {
-        val document = response.parseAs<MainPage>()
-
-        val mangas = document.lancamentos.map {
-            SManga.create().apply {
-                title = it.title
-                thumbnail_url = "$baseUrl${it.capa}"
-                setUrlWithoutDomain("/${it.slug}/")
+    private val cookieJar = object : CookieJar {
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+            val host = url.host
+            cookieStore.getOrPut(host) { mutableListOf() }.apply {
+                cookies.forEach { cookie ->
+                    removeAll { it.name == cookie.name }
+                    add(cookie)
+                }
             }
         }
 
-        return MangasPage(mangas, document.lancamentos.isNotEmpty())
+        override fun loadForRequest(url: HttpUrl): List<Cookie> {
+            return cookieStore[url.host]?.filter { it.matches(url) } ?: emptyList()
+        }
     }
 
-    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
-        return client.newCall(chapterListRequest(manga))
-            .asObservable()
-            .map { response ->
-                chapterListParse(manga, response)
+    private val loginClient by lazy {
+        OkHttpClient.Builder()
+            .cookieJar(cookieJar)
+            .followRedirects(false)
+            .build()
+    }
+
+    override val client by lazy {
+        network.cloudflareClient.newBuilder()
+            .rateLimit(2)
+            .cookieJar(cookieJar)
+            .addInterceptor(DataImageInterceptor())
+            .addInterceptor { chain ->
+                val request = chain.request()
+
+                ensureLoggedIn()
+
+                // Add X-CSRFToken for POST requests
+                if (request.method == "POST") {
+                    val csrfToken = cookieStore[baseUrl.toHttpUrl().host]
+                        ?.find { it.name == "csrftoken" }?.value ?: ""
+
+                    if (csrfToken.isNotEmpty()) {
+                        val newRequest = request.newBuilder()
+                            .header("X-CSRFToken", csrfToken)
+                            .build()
+                        return@addInterceptor chain.proceed(newRequest)
+                    }
+                }
+
+                chain.proceed(request)
             }
+            .build()
     }
 
-    fun chapterListParse(manga: SManga, response: Response): List<SChapter> {
-        if (response.code == 404) {
-            throw Exception("Capitulos não encontrados, tente migrar o manga, alguns nomes da LuraToon mudaram")
+    @Volatile
+    private var isLoggedIn = false
+
+    @Synchronized
+    private fun ensureLoggedIn() {
+        if (isLoggedIn) return
+
+        val email = preferences.getString(PREF_EMAIL, "") ?: ""
+        val password = preferences.getString(PREF_PASSWORD, "") ?: ""
+
+        if (email.isEmpty() || password.isEmpty()) {
+            throw Exception("Credenciais não configuradas. Vá em Configurações da Fonte e configure Email e Senha.")
         }
 
-        val comics = response.parseAs<Manga>()
+        // Step 1: Get login page to obtain csrftoken cookie
+        val loginPageRequest = GET("$baseUrl/accounts/login/")
+        val loginPageResponse = loginClient.newCall(loginPageRequest).execute()
+        loginPageResponse.close()
 
-        return comics.caps.sortedByDescending {
-            it.num
-        }.map { chapterFromElement(manga, it) }
-    }
+        val csrfToken = cookieStore[baseUrl.toHttpUrl().host]
+            ?.find { it.name == "csrftoken" }?.value
+            ?: throw Exception("Não foi possível obter o token CSRF")
 
-    private fun chapterFromElement(manga: SManga, capitulo: Capitulo) = SChapter.create().apply {
-        val capSlug = capitulo.slug.trimStart('/')
-        val mangaUrl = manga.url.trimEnd('/').trimStart('/')
-        setUrlWithoutDomain("/api/obra/$mangaUrl/$capSlug")
-        name = capitulo.num.toString().removeSuffix(".0")
-        date_upload = runCatching {
-            dateFormat.parse(capitulo.data)!!.time
-        }.getOrDefault(0L)
-    }
+        // Step 2: POST login with credentials
+        val loginBody = FormBody.Builder()
+            .add("csrfmiddlewaretoken", csrfToken)
+            .add("login", email)
+            .add("password", password)
+            .build()
 
-    override fun pageListParse(response: Response): List<Page> {
-        val capitulo = response.parseAs<CapituloPagina>()
-        val pathSegments = response.request.url.pathSegments
-        return (0 until capitulo.files).map { i ->
-            Page(i, baseUrl, "$baseUrl/api/cap-download/${capitulo.obra.id}/${capitulo.id}/$i?obra_id=${capitulo.obra.id}&cap_id=${capitulo.id}&slug=${pathSegments[2]}&cap_slug=${pathSegments[3]}")
+        val loginHeaders = Headers.Builder()
+            .add("Content-Type", "application/x-www-form-urlencoded")
+            .add("Referer", "$baseUrl/accounts/login/")
+            .add("Origin", baseUrl)
+            .build()
+
+        val loginRequest = Request.Builder()
+            .url("$baseUrl/accounts/login/")
+            .headers(loginHeaders)
+            .post(loginBody)
+            .build()
+
+        val loginResponse = loginClient.newCall(loginRequest).execute()
+
+        val statusCode = loginResponse.code
+        loginResponse.close()
+
+        if (statusCode !in listOf(302, 200)) {
+            throw Exception("Login falhou - código de status: $statusCode")
         }
-    }
 
-    override fun searchMangaParse(response: Response): MangasPage {
-        val mangas = response.parseAs<SearchResponse>().obras.map {
-            SManga.create().apply {
-                title = it.titulo
-                thumbnail_url = "$baseUrl${it.capa}"
-                setUrlWithoutDomain("/${it.slug}/")
-            }
+        val sessionId = cookieStore[baseUrl.toHttpUrl().host]
+            ?.find { it.name == "sessionid" }?.value
+
+        if (sessionId.isNullOrEmpty()) {
+            throw Exception("Login falhou - credenciais inválidas")
         }
 
-        return MangasPage(mangas, false)
+        syncCookiesToWebView()
+
+        isLoggedIn = true
+    }
+
+    private fun syncCookiesToWebView() {
+        val cookieManager = CookieManager.getInstance()
+        cookieStore[baseUrl.toHttpUrl().host]?.forEach { cookie ->
+            cookieManager.setCookie(baseUrl, "${cookie.name}=${cookie.value}")
+        }
+        cookieManager.flush()
+    }
+
+    override fun headersBuilder(): Headers.Builder = super.headersBuilder()
+        .add("Origin", baseUrl)
+        .add("Referer", "$baseUrl/")
+
+    // ============================== Popular ===============================
+
+    override fun popularMangaRequest(page: Int): Request {
+        return GET("$baseUrl/api/main/", headers)
     }
 
     override fun popularMangaParse(response: Response): MangasPage {
-        val document = response.parseAs<MainPage>()
+        val result = response.parseAs<MainPageDto>()
+        val mangas = result.top10.map { it.toSManga(baseUrl) }
+        return MangasPage(mangas, hasNextPage = false)
+    }
 
-        val mangas = document.top_10.map {
-            SManga.create().apply {
-                title = it.title
-                thumbnail_url = "$baseUrl${it.capa}"
-                setUrlWithoutDomain("/${it.slug}/")
+    // ============================== Latest ================================
+
+    override fun latestUpdatesRequest(page: Int): Request {
+        return if (page == 1) {
+            GET("$baseUrl/api/main/", headers)
+        } else {
+            POST("$baseUrl/api/main/?part=1", headers, FormBody.Builder().build())
+        }
+    }
+
+    override fun latestUpdatesParse(response: Response): MangasPage {
+        val result = response.parseAs<MainPageDto>()
+        val mangas = result.lancamentos.map { it.toSManga(baseUrl) }
+        // Only 2 pages: initial GET and ?part=1
+        val hasNextPage = response.request.url.queryParameter("part") == null && mangas.isNotEmpty()
+        return MangasPage(mangas, hasNextPage)
+    }
+
+    // ============================== Search ================================
+
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        if (query.length < 3) {
+            throw Exception("A pesquisa deve ter pelo menos 3 caracteres")
+        }
+
+        val url = "$baseUrl/api/autocomplete/$query/"
+        return GET(url, headers)
+    }
+
+    override fun searchMangaParse(response: Response): MangasPage {
+        val result = response.parseAs<SearchResultDto>()
+        val mangas = result.obras.map { it.toSManga(baseUrl) }
+        return MangasPage(mangas, hasNextPage = false)
+    }
+
+    // ============================== Details ===============================
+
+    override fun getMangaUrl(manga: SManga): String = "$baseUrl${manga.url}"
+
+    override fun mangaDetailsRequest(manga: SManga): Request {
+        val slug = manga.url.removePrefix("/").removeSuffix("/")
+        return GET("$baseUrl/api/obra/$slug/", headers)
+    }
+
+    override fun mangaDetailsParse(response: Response): SManga {
+        return response.parseAs<MangaDetailsDto>().toSManga(baseUrl)
+    }
+
+    // ============================== Chapters ==============================
+
+    override fun chapterListRequest(manga: SManga): Request = mangaDetailsRequest(manga)
+
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val manga = response.parseAs<MangaDetailsDto>()
+        return manga.caps.map { it.toSChapter(manga.slug) }
+            .sortedByDescending { it.chapter_number }
+    }
+
+    // ============================== Pages =================================
+
+    private val webViewInterceptor by lazy { LuraWebViewInterceptor() }
+
+    override fun getChapterUrl(chapter: SChapter): String = "$baseUrl${chapter.url}"
+
+    override fun pageListRequest(chapter: SChapter): Request {
+        // This request is used to build the chapter URL for WebView
+        // We won't actually use the API response
+        return GET("$baseUrl${chapter.url}", headers)
+    }
+
+    override fun pageListParse(response: Response): List<Page> {
+        // Close the unused response
+        response.close()
+
+        // Get the chapter URL for WebView extraction
+        val chapterUrl = response.request.url.toString()
+
+        // Build cookies string for WebView
+        val cookies = cookieStore[baseUrl.toHttpUrl().host]
+            ?.joinToString("; ") { "${it.name}=${it.value}" } ?: ""
+
+        // Use WebView to load the page and extract decrypted images
+        val base64Images = webViewInterceptor.extractChapterImages(
+            chapterUrl = chapterUrl,
+            userAgent = headers["User-Agent"] ?: DEFAULT_USER_AGENT,
+            cookies = cookies,
+        )
+
+        if (base64Images.isEmpty()) {
+            throw Exception("Não foi possível extrair as imagens do capítulo. Certifique-se de estar logado.")
+        }
+
+        // Convert data:image URLs to format expected by DataImageInterceptor
+        // Input: data:image/webp;base64,RIFF...
+        // Output: https://127.0.0.1/?image/webp;base64,RIFF...
+        return base64Images.mapIndexed { index, base64Data ->
+            val imageUrl = if (base64Data.startsWith("data:")) {
+                "https://127.0.0.1/?" + base64Data.substringAfter("data:")
+            } else {
+                base64Data
             }
+            Page(index, imageUrl = imageUrl)
         }
-
-        return MangasPage(mangas, false)
     }
 
-    private fun loggedVerifyInterceptor(chain: Interceptor.Chain): Response {
-        val response = chain.proceed(chain.request())
-        val pathSegments = response.request.url.pathSegments
-        if (response.request.url.pathSegments.contains("login") || pathSegments.isEmpty()) {
-            throw Exception("Faça o login na WebView para acessar o contéudo")
-        }
-        if (response.code == 429) {
-            throw Exception("A LuraToon lhe bloqueou por acessar rápido demais, aguarde por volta de 1 minuto e tente novamente")
-        }
-        return response
+    override fun imageUrlParse(response: Response): String {
+        throw UnsupportedOperationException()
     }
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("America/Sao_Paulo")
+    override fun imageRequest(page: Page): Request {
+        val imageUrl = page.imageUrl!!
+        val headers = headersBuilder()
+            .add("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+            .build()
+        return GET(imageUrl, headers)
     }
 
-    override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
+    // ============================== Filters ===============================
 
-    override fun chapterListParse(response: Response) = throw UnsupportedOperationException()
+    override fun getFilterList(): FilterList = FilterList()
+
+    // ============================== Preferences ===========================
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        EditTextPreference(screen.context).apply {
+            key = PREF_EMAIL
+            title = "Email"
+            summary = "Email de login para acessar conteúdo restrito"
+            dialogTitle = "Email"
+            setDefaultValue("")
+        }.let(screen::addPreference)
+
+        EditTextPreference(screen.context).apply {
+            key = PREF_PASSWORD
+            title = "Senha"
+            summary = "Senha de login para acessar conteúdo restrito"
+            dialogTitle = "Senha"
+            setDefaultValue("")
+        }.let(screen::addPreference)
+    }
+
+    companion object {
+        val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT)
+
+        private const val PREF_EMAIL = "pref_email"
+        private const val PREF_PASSWORD = "pref_password"
+        private const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+    }
 }

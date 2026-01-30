@@ -1,0 +1,81 @@
+Request URL
+https://luratoons.net/accounts/login/
+Request Method
+POST
+Status Code
+302 Found
+
+fetch("https://luratoons.net/accounts/login/", {
+  "headers": {
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "accept-language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "cache-control": "no-cache",
+    "content-type": "application/x-www-form-urlencoded",
+    "pragma": "no-cache",
+    "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "document",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-user": "?1",
+    "upgrade-insecure-requests": "1"
+  },
+  "referrer": "https://luratoons.net/accounts/login/",
+  "body": "csrfmiddlewaretoken=zcV2fEHiPXvQ7DMhOrSEd79AE90CFM5iAJEQE0BpHN7tQHu1qyTz5vblrTX5svp2&login=qiyanalol69%40gmail.com&password=fe9456437",
+  "method": "POST",
+  "mode": "cors",
+  "credentials": "include"
+});
+
+Request Headers:
+POST /accounts/login/ HTTP/1.1
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7
+Cache-Control: no-cache
+Connection: keep-alive
+Content-Length: 133
+Content-Type: application/x-www-form-urlencoded
+Cookie: csrftoken=bHTYzw4h20MNTeSUMhb52ycVXU7DXTuU; cf_clearance=KtAqmbtA_aAs6w38KhTRDt3hsHSlkJt0C2xY7Fh9b38-1769780755-1.2.1.1-8o6aJ49kiRiKxVSqIdoX2SbD6KndHxddPvV4oyJTqzd0E0UT50tu97TEUXAGP_ZefR1dSYdTOSZWRcWIFcrU4qmPTiK8zW7fDWGWBOzE520dsL8x9EVLyMF6na_gFTCszg1k8.vVZOqXfrAlcWqhy2o.JCFMlSuHMtPMd_qq.7CC0_ggu2_Ag_QSjPSEg0i7p7e1z_xqoF7sMUmaTPWpNaydXPAE.hmecQlSjebztCY; messages=.eJyLjlaKj88qzs-Lz00tLk5MT1XSMdAxMtVRcs7PS00uSUzJV0jOz1UoLk0GSoPZ-QqFmZWJeYl6SjpKSrE6uPSH5SfHlBoYpCYqFCdmlkIUxwIACqojxQ:1vloov:WBKJJ-XrMoKH8LIEt4RzQcilz4-4erhRxFOe41N-cng
+Host: luratoons.net
+Origin: https://luratoons.net
+Pragma: no-cache
+Referer: https://luratoons.net/accounts/login/
+Sec-Fetch-Dest: document
+Sec-Fetch-Mode: navigate
+Sec-Fetch-Site: same-origin
+Sec-Fetch-User: ?1
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36
+sec-ch-ua: "Not(A:Brand";v="8", "Chromium";v="144", "Google Chrome";v="144"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+Response Headers: 
+HTTP/1.1 302 Found
+Date: Fri, 30 Jan 2026 13:46:08 GMT
+Content-Type: text/html; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Server: cloudflare
+X-Robots-Tag: notranslate, noimageindex, nofollow
+X-Robots-Tag: noindex
+location: /
+expires: Fri, 30 Jan 2026 13:46:08 GMT
+cache-control: max-age=0, no-cache, no-store, must-revalidate, private
+x-frame-options: DENY
+vary: Cookie, origin
+x-content-type-options: nosniff
+referrer-policy: same-origin
+cross-origin-opener-policy: same-origin
+server-timing: 498.03 ms
+Server-Timing: cfCacheStatus;desc="DYNAMIC"
+Server-Timing: cfEdge;dur=116,cfOrigin;dur=502
+set-cookie: messages=.eJyLjlaKj88qzs-Lz00tLk5MT1XSMdAxMtVRcs7PS00uSUzJV0jOz1UoLk0GSoPZ-QqFmZWJeYl6SjpKSrE6uPSH5SfHlBoYpCYqFCdmlhJQTKRlsQC6Ejkr:1vlop6:DWpQW2eg0vE26sTrJER2Z19Er98lRiG8WFAZxv3eedc; HttpOnly; Path=/; SameSite=Lax
+set-cookie: csrftoken=mwzoUfxXoFrN5Y9Vh0023aH9osLrtPW0; expires=Fri, 29 Jan 2027 13:46:08 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+set-cookie: sessionid=xsuvgwrc2c4x1u29zklbnm6gnimh97mr; expires=Fri, 13 Feb 2026 13:46:08 GMT; HttpOnly; Max-Age=1209600; Path=/; SameSite=Lax
+cf-cache-status: DYNAMIC
+Strict-Transport-Security: max-age=15552000; includeSubDomains; preload
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ugQDiJBzwPJNu0QN8zHb1AuP7xfkVRoNM%2FZNcpTF7GIgGxYu8CHnW9q3z2kXf0t7I1RibFmGJVfv8DaHCGLPCoWr1vFVp4kxjjTQfw%3D%3D"}]}
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+CF-RAY: 9c6169e77e4bc93d-GRU

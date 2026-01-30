@@ -1,0 +1,382 @@
+curl ^"https://luratoons.net/api/main/^" ^
+  -H ^"accept: application/json, text/plain, */*^" ^
+  -H ^"accept-language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7^" ^
+  -H ^"cache-control: no-cache^" ^
+  -b ^"cf_clearance=aInWFYncp9Ec5OCuyFndsmfq3t6IWmsDnaTdLoqvUYU-1769773688-1.2.1.1-oivRpGgG9y1hFSxmuV.UXBorFB.qMniKiBJBKS7F17kFaeIWTNqdgtf3vll.2.VGoDadcl9ZwiE..mt7a89fW8HiHW8ZXzhL3XJNzijMlMBMpCbwpNEf9gF7GOoFfmdt6hryoLlN01yqqUzzR.qiPBPBiCCB601L_RNXs5CRn6YOrwjj0PJn3oz6QO3mWhdLdsPzMYQZ_mpBeEbyqZ4jfmnlU6nf4zZEnx9cDcg7o8k; messages=W1siX19qc29uX21lc3NhZ2UiLDAsMjUsIkNvbmVjdGFkbyBjb20gc3VjZXNzbyBjb21vIHFpeWFuYS4iLCIiXV0:1vln0k:36GvmV8z5mF3GMOaRhEEhz_eU0nElILfMK4K64Ms74E; csrftoken=2a26itfivNDdb1gzLQaPYOHjiAs574UQ; sessionid=q9hf3a868nablhjmww99fbqcauibicdu^" ^
+  -H ^"dnt: 1^" ^
+  -H ^"pragma: no-cache^" ^
+  -H ^"priority: u=1, i^" ^
+  -H ^"referer: https://luratoons.net/^" ^
+  -H ^"sec-ch-ua: ^\^"Not(A:Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"144^\^", ^\^"Google Chrome^\^";v=^\^"144^\^"^" ^
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+  -H ^"sec-fetch-dest: empty^" ^
+  -H ^"sec-fetch-mode: cors^" ^
+  -H ^"sec-fetch-site: same-origin^" ^
+  -H ^"user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36^"
+
+  {
+    "slides": [],
+    "lancamentos": [
+        {
+            "id": 50315,
+            "title": "Imperador Demon\u00edaco",
+            "capa": "/media/images/Imperador_Demoniaco_CAPA.format-webp.width-1000.webp",
+            "slug": "imperador-m\u00e1gico",
+            "caps": [
+                {
+                    "date": "2026-01-30T02:05:54.400Z",
+                    "num": 811.0,
+                    "slug": "811"
+                },
+                {
+                    "date": "2026-01-25T01:45:52.700Z",
+                    "num": 810.0,
+                    "slug": "810"
+                }
+            ]
+        },
+        {
+            "id": 32879,
+            "title": "Novato de N\u00edvel M\u00e1ximo",
+            "capa": "/media/images/Novato_de_Nivel_Maximo_Capa.format-webp.width-1000.webp",
+            "slug": "novato-de-nivel-maximo",
+            "caps": [
+                {
+                    "date": "2026-01-29T19:47:43.169Z",
+                    "num": 243.0,
+                    "slug": "243"
+                },
+                {
+                    "date": "2026-01-22T20:33:50.586Z",
+                    "num": 242.0,
+                    "slug": "242"
+                }
+            ]
+        },
+        {
+            "id": 66750,
+            "title": "A Queda do Rei Dem\u00f4nio",
+            "capa": "/media/images/A_Queda_do_Rei_Demonio_CAPA.format-webp.width-1000.webp",
+            "slug": "a-queda-do-rei-dem\u00f4nio",
+            "caps": [
+                {
+                    "date": "2026-01-29T19:41:18.686Z",
+                    "num": 15.0,
+                    "slug": "15"
+                },
+                {
+                    "date": "2026-01-22T19:14:56.494Z",
+                    "num": 14.0,
+                    "slug": "14"
+                }
+            ]
+        },
+        {
+            "id": 66690,
+            "title": "Retorno Do Vampiro Carmesim",
+            "capa": "/media/images/Vampiro_Carmesim_CAPA.format-webp.width-1000.webp",
+            "slug": "a-nova-vida-do-vampiro-carmesim",
+            "caps": [
+                {
+                    "date": "2026-01-29T18:49:21.444Z",
+                    "num": 28.0,
+                    "slug": "28"
+                },
+                {
+                    "date": "2026-01-23T16:34:41.547Z",
+                    "num": 27.0,
+                    "slug": "27"
+                }
+            ]
+        },
+        {
+            "id": 29669,
+            "title": "Apar\u00eancias",
+            "capa": "/media/images/Aparencias_Capa.format-webp.width-1000.webp",
+            "slug": "aparencias-enganam",
+            "caps": [
+                {
+                    "date": "2026-01-29T17:40:35.774Z",
+                    "num": 592.0,
+                    "slug": "592"
+                },
+                {
+                    "date": "2026-01-22T16:00:45.168Z",
+                    "num": 591.0,
+                    "slug": "591"
+                }
+            ]
+        },
+        {
+            "id": 17261,
+            "title": "Guia de Sobreviv\u00eancia do Extra da Academia",
+            "capa": "/media/images/Guia_do_Extra_CAPA.format-webp.width-1000.webp",
+            "slug": "guia-de-sobrevivencia-do-extra-da-academi",
+            "caps": [
+                {
+                    "date": "2026-01-29T17:35:50.898Z",
+                    "num": 89.0,
+                    "slug": "89"
+                },
+                {
+                    "date": "2026-01-22T17:46:40.192Z",
+                    "num": 88.0,
+                    "slug": "88"
+                }
+            ]
+        },
+        {
+            "id": 66344,
+            "title": "O Advogado Assassino",
+            "capa": "/media/images/Advogado_Assassino_CAPA.format-webp.width-1000.webp",
+            "slug": "o-advogado-assassino",
+            "caps": [
+                {
+                    "date": "2026-01-29T15:51:40.469Z",
+                    "num": 16.0,
+                    "slug": "16"
+                },
+                {
+                    "date": "2026-01-29T15:51:40.173Z",
+                    "num": 15.0,
+                    "slug": "15"
+                }
+            ]
+        },
+        {
+            "id": 38328,
+            "title": "Sentido Absoluto da Espada",
+            "capa": "/media/images/Sentido_da_Espada_CAPA.format-webp.width-1000.webp",
+            "slug": "sentido-absoluto-da-espada",
+            "caps": [
+                {
+                    "date": "2026-01-29T15:33:20.333Z",
+                    "num": 167.0,
+                    "slug": "167"
+                },
+                {
+                    "date": "2026-01-24T22:54:10.878Z",
+                    "num": 166.0,
+                    "slug": "166"
+                }
+            ]
+        },
+        {
+            "id": 38204,
+            "title": "Retorno do Dem\u00f4nio Louco",
+            "capa": "/media/images/Retorno_do_Demonio_CAPA.format-webp.width-1000.webp",
+            "slug": "o-retorno-do-demonio-louco",
+            "caps": [
+                {
+                    "date": "2026-01-29T15:33:07.979Z",
+                    "num": 188.0,
+                    "slug": "188"
+                },
+                {
+                    "date": "2026-01-23T21:18:05.651Z",
+                    "num": 187.0,
+                    "slug": "187"
+                }
+            ]
+        },
+        {
+            "id": 35502,
+            "title": "O Tutorial \u00e9 Muito Dif\u00edcil",
+            "capa": "/media/images/O_Tutorial_e_Muito_Dificil_Capa..format-webp.width-1000.webp",
+            "slug": "o-tutorial-e-muito-dificil",
+            "caps": [
+                {
+                    "date": "2026-01-29T15:32:56.279Z",
+                    "num": 254.0,
+                    "slug": "254"
+                },
+                {
+                    "date": "2026-01-21T17:51:27.623Z",
+                    "num": 253.0,
+                    "slug": "253"
+                }
+            ]
+        },
+        {
+            "id": 54732,
+            "title": "Cavaleiro Santo De Grau SSS",
+            "capa": "/media/images/Cavaleiro_Santo_de_Grau_SSS_CAPA.format-webp.width-1000.webp",
+            "slug": "cavaleiro-santo-de-grau-sss",
+            "caps": [
+                {
+                    "date": "2026-01-29T15:32:36.703Z",
+                    "num": 122.0,
+                    "slug": "122"
+                },
+                {
+                    "date": "2026-01-29T15:32:36.952Z",
+                    "num": 121.0,
+                    "slug": "121"
+                }
+            ]
+        },
+        {
+            "id": 17233,
+            "title": "Arquimago Transcendido Pela Regress\u00e3o",
+            "capa": "/media/images/Arquimago_Transcendido_pela_Regr.format-webp.width-1000.webp",
+            "slug": "arquimago-transcendido-pela-regressa",
+            "caps": [
+                {
+                    "date": "2026-01-29T15:06:28.997Z",
+                    "num": 185.0,
+                    "slug": "185"
+                },
+                {
+                    "date": "2026-01-19T23:30:40.610Z",
+                    "num": 184.0,
+                    "slug": "184"
+                }
+            ]
+        },
+        {
+            "id": 53890,
+            "title": "Destinado a Ser Amado por Vil\u00e3s",
+            "capa": "/media/images/Destinado_a_ser_Amado_por_Vilas_.format-webp.width-1000.webp",
+            "slug": "destinado-a-ser-amado-por-vil\u00f5es",
+            "caps": [
+                {
+                    "date": "2026-01-29T15:00:44.634Z",
+                    "num": 52.0,
+                    "slug": "52"
+                },
+                {
+                    "date": "2026-01-14T14:30:14.760Z",
+                    "num": 51.0,
+                    "slug": "51"
+                }
+            ]
+        },
+        {
+            "id": 17269,
+            "title": "O \u00daltimo Aventureiro",
+            "capa": "/media/images/O_Ultimo_aventureiro_CAPA.format-webp.width-1000.webp",
+            "slug": "ultimo-aventureiro",
+            "caps": [
+                {
+                    "date": "2026-01-29T14:44:07.854Z",
+                    "num": 107.0,
+                    "slug": "107"
+                },
+                {
+                    "date": "2026-01-21T13:04:05.764Z",
+                    "num": 106.0,
+                    "slug": "106"
+                }
+            ]
+        },
+        {
+            "id": 51123,
+            "title": "A 31\u00aa Pe\u00e7a Que virou o Tabuleiro",
+            "capa": "/media/images/a_31_Peca_que_Virou_o_Tabuleiro_.format-webp.width-1000.webp",
+            "slug": "a-31\u00aa-pe\u00e7a-que-virou-o-tabuleiro",
+            "caps": [
+                {
+                    "date": "2026-01-29T14:23:32.525Z",
+                    "num": 102.0,
+                    "slug": "102"
+                },
+                {
+                    "date": "2026-01-06T16:34:26.196Z",
+                    "num": 101.0,
+                    "slug": "101"
+                }
+            ]
+        },
+        {
+            "id": 53784,
+            "title": "Ala de Combate",
+            "capa": "/media/images/Ala_de_Combate_CAPA.format-webp.width-1000.webp",
+            "slug": "ala-de-combate",
+            "caps": [
+                {
+                    "date": "2026-01-29T13:51:32.766Z",
+                    "num": 64.0,
+                    "slug": "64"
+                },
+                {
+                    "date": "2026-01-29T13:51:32.998Z",
+                    "num": 63.0,
+                    "slug": "63"
+                }
+            ]
+        }
+    ],
+    "top_10": [
+        {
+            "id": 50315,
+            "title": "Imperador Demon\u00edaco",
+            "capa": "/media/images/Imperador_Demoniaco_CAPA.format-webp.width-1000.webp",
+            "slug": "imperador-m\u00e1gico",
+            "tipo": "Manhua"
+        },
+        {
+            "id": 31162,
+            "title": "Nanotecnologia Marcial",
+            "capa": "/media/images/Nanotecnologia_Marcial_Capa_01.format-webp.width-1000.webp",
+            "slug": "nanotecnologia-marcia",
+            "tipo": "Manhwa"
+        },
+        {
+            "id": 29668,
+            "title": "Veletric",
+            "capa": "/media/images/Capa_Veletric.format-webp.width-1000.webp",
+            "slug": "39ab42c7-4480-4023-a5bb-6d9014fee5f51",
+            "tipo": "Manhwa"
+        },
+        {
+            "id": 45237,
+            "title": "O Antigo Soberano da Eternidade",
+            "capa": "/media/images/O_Melhor_Engenheiro_do_Mundo_CAP_D6GaseW.format-webp.width-1000.webp",
+            "slug": "o-antigo-soberano-da-eternidade",
+            "tipo": "Manhua"
+        },
+        {
+            "id": 35507,
+            "title": "O Ca\u00e7ula do Mestre Espadachim",
+            "capa": "/media/images/O_Cacula_do_Mestre_Espadachim_CA.format-webp.width-1000.webp",
+            "slug": "o-cacula-do-mestre-espadachim",
+            "tipo": "Manhwa"
+        },
+        {
+            "id": 29669,
+            "title": "Apar\u00eancias",
+            "capa": "/media/images/Aparencias_Capa.format-webp.width-1000.webp",
+            "slug": "aparencias-enganam",
+            "tipo": "Manhwa"
+        },
+        {
+            "id": 35505,
+            "title": "Vingan\u00e7a do C\u00e3o de Ca\u00e7a dos Baskerville",
+            "capa": "/media/images/capa_zXk7LlG.format-webp.width-1000.webp",
+            "slug": "vinganca-do-cao-de-caca-dos-baskerville",
+            "tipo": "Manhwa"
+        },
+        {
+            "id": 41748,
+            "title": "O Melhor Engenheiro Do Mundo",
+            "capa": "/media/images/O_Melhor_Engenheiro_do_Mundo_CAP.format-webp.width-1000.webp",
+            "slug": "o-melhor-engenheiro-do-mundo",
+            "tipo": "Manhwa"
+        },
+        {
+            "id": 31165,
+            "title": "Contrato Mercen\u00e1rio",
+            "capa": "/media/images/Contrato_Mercenario_Capa.format-webp.width-1000.webp",
+            "slug": "e58c89bc-b63f-4c6d-bdc7-8542cd9948b11",
+            "tipo": "Manhwa"
+        },
+        {
+            "id": 32156,
+            "title": "Mago do Infinito",
+            "capa": "/media/images/Mago_do_Infinito_Capa.png.format-webp.width-1000.webp",
+            "slug": "mago-do-infinit",
+            "tipo": "Manhwa"
+        }
+    ]
+}

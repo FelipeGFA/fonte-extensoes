@@ -2,12 +2,11 @@ ext {
     extName = 'Lura Toon'
     extClass = '.LuraToon'
     baseUrl = 'https://luratoons.net'
-    extVersionCode = 57
+    extVersionCode = 59
 }
 
 apply from: "$rootDir/common.gradle"
 
 dependencies {
-    implementation project(':lib:randomua')
-    implementation project(':lib:zipinterceptor')
+    implementation(project(':lib:dataimage'))
 }
