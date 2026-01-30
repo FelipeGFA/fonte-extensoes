@@ -1,19 +1,53 @@
 package eu.kanade.tachiyomi.extension.pt.sakuramangas
 
+import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
 
 @Serializable
-class SakuraMangasResultDto(
-    val hasMore: Boolean,
-    private val html: String,
+class SakuraMangasLatestDto(
+    private val titulo: String,
+    private val url_manga: String,
+    private val thumb: String,
 ) {
+    fun toSManga(baseUri: String) = SManga.create().apply {
+        title = titulo
+        thumbnail_url = "$baseUri$thumb"
+        url = url_manga
+    }
+}
 
-    fun asJsoup(baseUri: String = ""): Document {
-        return Jsoup.parseBodyFragment(this.html, baseUri)
+@Serializable
+class SakuraMangasPopularResponseDto(val data: List<SakuraMangasPopularDto>)
+
+@Serializable
+class SakuraMangasPopularDto(
+    private val titulo: String,
+    private val url: String,
+    private val thumb: String,
+) {
+    fun toSManga(baseUri: String) = SManga.create().apply {
+        title = titulo
+        thumbnail_url = "$baseUri$thumb"
+        url = this@SakuraMangasPopularDto.url
+    }
+}
+
+@Serializable
+class SakuraMangasSearchResponseDto(val data: List<SakuraMangasSearchDto>, val hasMore: Boolean)
+
+@Serializable
+class SakuraMangasSearchDto(
+    private val titulo: String,
+    private val url_slug: String,
+    private val sinopse: String? = null,
+) {
+    fun toSManga(baseUri: String) = SManga.create().apply {
+        title = titulo
+        thumbnail_url = "$baseUri/obras/$url_slug/thumb_256.jpg"
+        url = "/obras/$url_slug"
+        description = sinopse
     }
 }
 
@@ -29,7 +63,7 @@ class SakuraMangaInfoDto(
     private val classificacao: String?,
     private val avaliacao: Double?,
 ) {
-    fun toSManga(mangaUrl: String): SManga = SManga.create().apply {
+    fun toSManga(mangaUrl: String) = SManga.create().apply {
         title = titulo
         author = autor
         genre = tags.joinToString()
@@ -39,15 +73,12 @@ class SakuraMangaInfoDto(
             else -> SManga.UNKNOWN
         }
         description = buildString {
-            sinopse?.takeIf { it.isNotBlank() }?.let {
-                appendLine(it)
-                appendLine()
-            }
+            sinopse?.takeIf { it.isNotBlank() }?.let { appendLine(it); appendLine() }
             ano?.let { appendLine("Ano: $it") }
             demografia?.takeIf { it.isNotBlank() }?.let { appendLine("Demografia: $it") }
             classificacao?.takeIf { it.isNotBlank() }?.let { appendLine("Classificação: $it") }
             avaliacao?.let { appendLine("Avaliação: $it") }
-        }.trim()
+        }
         thumbnail_url = "${mangaUrl.trimEnd('/')}/thumb_256.jpg"
         url = mangaUrl.toHttpUrl().encodedPath
         initialized = true
@@ -55,6 +86,27 @@ class SakuraMangaInfoDto(
 }
 
 @Serializable
-class SakuraMangaChapterReadDto(
-    val imageUrls: String,
-)
+class SakuraMangasChaptersDto(val has_more: Boolean, val data: List<SakuraMangasChapterGroupDto>)
+
+@Serializable
+class SakuraMangasChapterGroupDto(
+    val numero: Float,
+    val data_timestamp: Long,
+    val versoes: List<SakuraMangasChapterVersionDto>,
+) {
+    fun toSChapter() = SChapter.create().apply {
+        val first = versoes.first()
+        val num = numero.toString().removeSuffix(".0")
+        url = first.url
+        name = "Cap. $num${first.titulo?.let { " - $it" }.orEmpty()}"
+        date_upload = data_timestamp * 1000
+        chapter_number = numero
+        scanlator = first.scans.joinToString { it.nome }
+    }
+}
+
+@Serializable
+class SakuraMangasChapterVersionDto(val titulo: String?, val url: String, val scans: List<SakuraMangasChapterScanDto>)
+
+@Serializable
+class SakuraMangasChapterScanDto(val nome: String)
