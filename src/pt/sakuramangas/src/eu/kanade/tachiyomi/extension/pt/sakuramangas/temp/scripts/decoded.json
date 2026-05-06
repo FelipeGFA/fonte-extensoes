@@ -1,0 +1,308 @@
+{
+  "success": true,
+  "has_more": true,
+  "total_groups": 86,
+  "data": [
+    {
+      "numero": 70.2,
+      "data_timestamp": 1778093766,
+      "data_amigavel": "Há 1 hora",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 279746,
+          "titulo": null,
+          "views": 96,
+          "views_short": "96",
+          "likes": 8,
+          "likes_short": "8",
+          "comments": 3,
+          "comments_short": "3",
+          "data_amigavel": "Há 1 hora",
+          "timestamp": 1778093766,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/70-2",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 70.1,
+      "data_timestamp": 1775522145,
+      "data_amigavel": "Há 29 dias",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 276501,
+          "titulo": null,
+          "views": 757,
+          "views_short": "757",
+          "likes": 36,
+          "likes_short": "36",
+          "comments": 14,
+          "comments_short": "14",
+          "data_amigavel": "Há 29 dias",
+          "timestamp": 1775522145,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/70-1",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 69,
+      "data_timestamp": 1771979444,
+      "data_amigavel": "Há 2 meses",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 272789,
+          "titulo": null,
+          "views": 908,
+          "views_short": "908",
+          "likes": 44,
+          "likes_short": "44",
+          "comments": 17,
+          "comments_short": "17",
+          "data_amigavel": "Há 2 meses",
+          "timestamp": 1771979444,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/69",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 68,
+      "data_timestamp": 1767394731,
+      "data_amigavel": "Há 4 meses",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 266057,
+          "titulo": null,
+          "views": 1056,
+          "views_short": "1.1k",
+          "likes": 41,
+          "likes_short": "41",
+          "comments": 13,
+          "comments_short": "13",
+          "data_amigavel": "Há 4 meses",
+          "timestamp": 1767394731,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/68",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 67,
+      "data_timestamp": 1762959188,
+      "data_amigavel": "Há 5 meses",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 259921,
+          "titulo": null,
+          "views": 1067,
+          "views_short": "1.1k",
+          "likes": 39,
+          "likes_short": "39",
+          "comments": 15,
+          "comments_short": "15",
+          "data_amigavel": "Há 5 meses",
+          "timestamp": 1762959188,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/67",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 66,
+      "data_timestamp": 1757515323,
+      "data_amigavel": "Há 7 meses",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 242120,
+          "titulo": null,
+          "views": 1047,
+          "views_short": "1k",
+          "likes": 32,
+          "likes_short": "32",
+          "comments": 6,
+          "comments_short": "6",
+          "data_amigavel": "Há 7 meses",
+          "timestamp": 1757515323,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/66",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 65.5,
+      "data_timestamp": 1753670301,
+      "data_amigavel": "Há 9 meses",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 232975,
+          "titulo": "No cinema",
+          "views": 667,
+          "views_short": "667",
+          "likes": 20,
+          "likes_short": "20",
+          "comments": 6,
+          "comments_short": "6",
+          "data_amigavel": "Há 9 meses",
+          "timestamp": 1753670301,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/65-5",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 65,
+      "data_timestamp": 1748138595,
+      "data_amigavel": "Há 11 meses",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 198399,
+          "titulo": null,
+          "views": 772,
+          "views_short": "772",
+          "likes": 19,
+          "likes_short": "19",
+          "comments": 7,
+          "comments_short": "7",
+          "data_amigavel": "Há 11 meses",
+          "timestamp": 1748138595,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/65",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 64.6,
+      "data_timestamp": 1743545170,
+      "data_amigavel": "Há 1 ano",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 177625,
+          "titulo": null,
+          "views": 411,
+          "views_short": "411",
+          "likes": 9,
+          "likes_short": "9",
+          "comments": 1,
+          "comments_short": "1",
+          "data_amigavel": "Há 1 ano",
+          "timestamp": 1743545170,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/64-6",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    },
+    {
+      "numero": 64.5,
+      "data_timestamp": 1745366062,
+      "data_amigavel": "Há 1 ano",
+      "todos_lidos": false,
+      "versoes": [
+        {
+          "id": 182540,
+          "titulo": null,
+          "views": 348,
+          "views_short": "348",
+          "likes": 8,
+          "likes_short": "8",
+          "comments": 0,
+          "comments_short": "0",
+          "data_amigavel": "Há 1 ano",
+          "timestamp": 1745366062,
+          "is_read": false,
+          "url": "/obras/mieruko-chan/64-5",
+          "scans": [
+            {
+              "id": 66,
+              "nome": "Inu no Kai",
+              "url": "inu-no-kai"
+            }
+          ],
+          "is_parent": true
+        }
+      ]
+    }
+  ],
+  "volumes_data": []
+}
