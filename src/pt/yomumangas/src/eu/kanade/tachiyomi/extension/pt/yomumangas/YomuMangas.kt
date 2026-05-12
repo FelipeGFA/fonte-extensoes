@@ -1,13 +1,5 @@
 package eu.kanade.tachiyomi.extension.pt.yomumangas
 
-import android.annotation.SuppressLint
-import android.app.Application
-import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
-import android.webkit.CookieManager
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -74,8 +66,6 @@ class YomuMangas : HttpSource() {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$apiUrl/mangas".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("hentai", filterState.showHentai.toString())
-            .addQueryParameter("nsfw", filterState.showNsfw.toString())
 
         if (query.isNotEmpty()) {
             url.addQueryParameter("query", query)
