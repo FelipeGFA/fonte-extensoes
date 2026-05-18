@@ -47,15 +47,19 @@ internal fun parseStatus(statusText: String?): Int = when (statusText?.lowercase
 
 private fun JsonElement.matchesSeriesPayload(expectedSlug: String): Boolean {
     val payload = this as? JsonObject ?: return false
-    if (payload["slug"]?.jsonPrimitive?.contentOrNull != expectedSlug) return false
+    val payloadSlug = payload["slug"]?.jsonPrimitive?.contentOrNull
+        ?: payload["seriesSlug"]?.jsonPrimitive?.contentOrNull
+    if (payloadSlug != expectedSlug) return false
 
-    val chapters = payload["chapters"] as? JsonArray ?: return false
+    val chapters = payload["capitulos_lista"] as? JsonArray
+        ?: payload["chapters"] as? JsonArray
+        ?: return false
     val hasValidChapterShape = chapters.isEmpty() || chapters.any { chapter ->
         val chapterObject = chapter as? JsonObject ?: return@any false
         "id" in chapterObject && "number" in chapterObject
     }
 
-    return ("catalogId" in payload || "seriesId" in payload || "contentRef" in payload) &&
+    return ("catalogId" in payload || "seriesId" in payload || "contentRef" in payload || "refId" in payload) &&
         hasValidChapterShape &&
         (
             "chapterTotal" in payload ||

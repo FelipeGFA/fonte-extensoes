@@ -9,11 +9,8 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
-import keiyoushi.utils.extractNextJsRsc
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.parseAs
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -119,19 +116,24 @@ class YomuComics : HttpSource() {
 
         val requestHeaders = headers.newBuilder()
             .set("Referer", chapterPageUrl)
-            .set("RSC", "1")
             .build()
 
         return GET(chapterPageUrl, requestHeaders)
     }
 
-    override fun pageListParse(response: Response): List<Page> {
-        val data = response.body.string().extractNextJsRsc<ChapterContentDto> {
-            it is JsonObject && "content" in it && "id" in it && "number" in it && it["content"] is JsonArray
-        }
+    override fun pageListParse(response: Response): List<Page> = response.use { res ->
+        val document = res.asJsoup()
+        val pageUrls = document.select(PAGE_IMAGE_SELECTOR)
+            .mapNotNull { image ->
+                image.absUrl("src")
+                    .ifEmpty { image.attr("src") }
+                    .replace(" ", "%20")
+                    .takeIf(String::isNotEmpty)
+            }
+            .distinct()
 
-        if (data != null && data.content.isNotEmpty()) {
-            return data.content.mapIndexed { index, imageUrl ->
+        if (pageUrls.isNotEmpty()) {
+            return@use pageUrls.mapIndexed { index, imageUrl ->
                 Page(index, imageUrl = imageUrl)
             }
         }
@@ -205,6 +207,7 @@ class YomuComics : HttpSource() {
         const val DEFAULT_TYPE = "all"
         const val DEFAULT_STATUS = "all"
         const val DEFAULT_SORT = "popular"
+        private const val PAGE_IMAGE_SELECTOR = "img[src*=/obras/][src*=page]"
     }
 
     private val bibliotecaHeaders by lazy {
