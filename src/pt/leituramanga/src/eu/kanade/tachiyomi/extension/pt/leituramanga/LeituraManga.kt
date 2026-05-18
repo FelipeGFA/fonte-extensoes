@@ -57,13 +57,13 @@ class LeituraManga : HttpSource() {
 
     // ================= Popular ==================
 
-    override fun popularMangaRequest(page: Int) = GET("$apiUrl/api/manga/?sort=view&limit=24&page=$page", headers)
+    override fun popularMangaRequest(page: Int) = GET("$apiUrl/api/manga/?sort=view&limit=30&page=$page", headers)
 
     override fun popularMangaParse(response: Response) = latestUpdatesParse(response)
 
     // ================= Latest ==================
 
-    override fun latestUpdatesRequest(page: Int) = GET("$apiUrl/api/manga/?sort=time&limit=24&page=$page", headers)
+    override fun latestUpdatesRequest(page: Int) = GET("$apiUrl/api/manga/?sort=time&limit=30&page=$page", headers)
 
     override fun latestUpdatesParse(response: Response): MangasPage {
         val result = response.parseAs<MangaResponseDto<MangaListDto>>()
@@ -125,9 +125,17 @@ class LeituraManga : HttpSource() {
         author = document.selectFirst("h2:contains(Informações) +div p:contains(Autor)")?.text()?.substringAfter(":")
         genre = document.select("h2 + div > a[href*=genre]").joinToString { it.text() }
 
-        status = when (document.selectFirst("h2:contains(Informações) +div p:contains(Status)")?.text()?.substringAfter(":")?.trim()?.lowercase()) {
-            "ongoing" -> SManga.ONGOING
-            "completed" -> SManga.COMPLETED
+        val statusText = document.selectFirst("h2:contains(Informações) +div p:contains(Status)")
+            ?.text()
+            ?.substringAfter(":")
+            ?.trim()
+            ?.lowercase()
+
+        status = when (statusText) {
+            "ongoing", "em andamento" -> SManga.ONGOING
+            "completed", "completo" -> SManga.COMPLETED
+            "cancelled", "cancelado" -> SManga.CANCELLED
+            "onhold", "on hold", "em pausa" -> SManga.ON_HIATUS
             else -> SManga.UNKNOWN
         }
 

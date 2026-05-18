@@ -27,14 +27,14 @@ class PaginationDto(
 
 @Serializable
 class MangaDto(
-    val _id: String,
-    val title: String,
-    val slug: String,
-    val author: String? = null,
-    val description: String? = null,
-    val status: String? = null,
-    val genres: List<GenreDto>? = emptyList(),
-    val alternativeTitles: List<String>? = emptyList(),
+    @SerialName("_id") private val id: String,
+    private val title: String,
+    private val slug: String,
+    private val author: String? = null,
+    private val description: String? = null,
+    private val status: Int? = null,
+    private val genres: List<GenreDto> = emptyList(),
+    private val alternativeTitles: List<String> = emptyList(),
 ) {
     fun toSManga(cdnUrl: String) = SManga.create().apply {
         title = this@MangaDto.title
@@ -43,24 +43,28 @@ class MangaDto(
         author = this@MangaDto.author
         description = buildString {
             this@MangaDto.description?.let { append(it) }
-            this@MangaDto.alternativeTitles?.takeIf { it.isNotEmpty() }?.let {
+            this@MangaDto.alternativeTitles.takeIf { it.isNotEmpty() }?.let {
                 if (isNotEmpty()) append("\n\n")
                 append("Títulos alternativos: ${it.joinToString()}")
             }
         }
         status = when (this@MangaDto.status) {
-            "Ongoing" -> SManga.ONGOING
-            "Completed" -> SManga.COMPLETED
+            1 -> SManga.ONGOING
+            2 -> SManga.COMPLETED
+            3 -> SManga.CANCELLED
+            4 -> SManga.ON_HIATUS
             else -> SManga.UNKNOWN
         }
-        genre = this@MangaDto.genres?.joinToString { it.name }
+        genre = this@MangaDto.genres.takeIf { it.isNotEmpty() }?.joinToString { it.toGenreName() }
     }
 }
 
 @Serializable
 class GenreDto(
-    val name: String,
-)
+    private val name: String,
+) {
+    fun toGenreName() = name
+}
 
 @Serializable
 class ChapterListDto(
