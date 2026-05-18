@@ -18,11 +18,8 @@
 
     return (
       (Array.isArray(data.data) && data.pagination) ||
-      !!(data.manga && data.manga.id) ||
-      Array.isArray(data.chapters) ||
-      Array.isArray(data.pages) ||
-      (typeof data.token === "string" && data.token.length > 20) ||
-      !!(data.user && data.user.id)
+      !!(data.manga && data.manga.id && Array.isArray(data.chapters)) ||
+      Array.isArray(data.pages)
     );
   }
 
@@ -40,7 +37,7 @@
     return null;
   }
 
-  function sendPayload(data, source) {
+  function sendPayload(data) {
     try {
       var payload = findPayload(data);
       if (!payload) return false;
@@ -61,7 +58,7 @@
     var originalJSONParse = JSON.parse;
     JSON.parse = function () {
       var parsed = originalJSONParse.apply(this, arguments);
-      sendPayload(parsed, "JSON.parse");
+      sendPayload(parsed);
       return parsed;
     };
   } catch (e) { }

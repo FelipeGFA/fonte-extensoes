@@ -1,17 +1,13 @@
 package eu.kanade.tachiyomi.extension.pt.kuromangas
 
-import android.app.Application
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
+import keiyoushi.utils.JSON_MEDIA_TYPE
+import keiyoushi.utils.parseAs
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import java.io.IOException
 
 class KuroWebViewDecrypt(
     private val baseUrl: String,
@@ -29,12 +25,12 @@ class KuroWebViewDecrypt(
 
         val token = tokenProvider()
         if (token.isBlank()) {
-            failLoginRequired()
+            requireKuroLogin()
         }
 
         val decryptedData = tryWebViewDecrypt(url)
         if (decryptedData == null) {
-            failLoginRequired()
+            requireKuroLogin()
         }
 
         return Response.Builder()
@@ -50,22 +46,24 @@ class KuroWebViewDecrypt(
         val pageUrl = getPageUrlForApi(apiUrl)
         val expectPages = apiUrl.contains("/api/chapters/") && apiUrl.contains("/read")
         return webViewInterceptor.getDecryptedData(pageUrl, expectPages)
+            ?.let { normalizeCapturedPayload(apiUrl, it) }
     }
 
     private fun getPageUrlForApi(apiUrl: String) = when {
-        apiUrl.contains("/api/mangas") && !apiUrl.contains("/api/mangas/") -> buildCatalogoUrl(apiUrl)
+        apiUrl.contains("/api/mangas") && !apiUrl.contains("/api/mangas/") -> buildCatalogUrl(apiUrl)
         apiUrl.contains("/api/mangas/") -> "$baseUrl/manga/${apiUrl.substringAfter("/api/mangas/").substringBefore("?")}"
         apiUrl.contains("/api/chapters/") && apiUrl.contains("/read") -> {
+            val sourceUrl = apiUrl.toHttpUrl()
             val chapterId = apiUrl.substringAfter("/api/chapters/").substringBefore("/read")
-            val mangaId = apiUrl.substringAfter("manga_id=", "").substringBefore("&").ifEmpty { "0" }
-            "$baseUrl/reader/$mangaId/$chapterId"
+            val mangaId = sourceUrl.queryParameter("manga_id") ?: error("manga_id ausente na URL de leitura")
+            "$baseUrl/read/$mangaId/$chapterId"
         }
-        else -> "$baseUrl/catalogo"
+        else -> "$baseUrl/catalog"
     }
 
-    private fun buildCatalogoUrl(apiUrl: String): String {
+    private fun buildCatalogUrl(apiUrl: String): String {
         val sourceUrl = apiUrl.toHttpUrl()
-        val targetUrl = "$baseUrl/catalogo".toHttpUrl().newBuilder()
+        val targetUrl = "$baseUrl/catalog".toHttpUrl().newBuilder()
 
         sourceUrl.queryParameter("page")?.takeIf { it != "1" }?.let {
             targetUrl.addQueryParameter("page", it)
@@ -80,19 +78,31 @@ class KuroWebViewDecrypt(
         return targetUrl.build().toString()
     }
 
-    private fun showToast(message: String) {
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(Injekt.get<Application>(), message, Toast.LENGTH_LONG).show()
+    private fun normalizeCapturedPayload(apiUrl: String, data: String): String {
+        val root = runCatching { data.parseAs<JsonObject>() }.getOrNull() ?: return data
+
+        val payload = when {
+            apiUrl.contains("/api/mangas") && !apiUrl.contains("/api/mangas/") -> root.unwrapDynamicPayload { it.hasMangaListPayload() }
+            apiUrl.contains("/api/mangas/") -> root.unwrapDynamicPayload { it.hasMangaDetailsPayload() }
+            apiUrl.contains("/api/chapters/") && apiUrl.contains("/read") -> root.unwrapDynamicPayload { it.hasPagesPayload() }
+            else -> null
         }
+
+        return payload?.toString() ?: data
     }
 
-    private fun failLoginRequired(): Nothing {
-        val message = "Faca login na WebView da KuroMangas e tente novamente"
-        showToast(message)
-        throw IOException(message)
+    private fun JsonObject.unwrapDynamicPayload(matches: (JsonObject) -> Boolean): JsonObject? {
+        if (matches(this)) return this
+
+        return values
+            .asSequence()
+            .mapNotNull { it as? JsonObject }
+            .firstOrNull(matches)
     }
 
-    companion object {
-        private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-    }
+    private fun JsonObject.hasMangaListPayload() = this["data"] is JsonArray && this["pagination"] is JsonObject
+
+    private fun JsonObject.hasMangaDetailsPayload() = this["manga"] is JsonObject && this["chapters"] is JsonArray
+
+    private fun JsonObject.hasPagesPayload() = this["pages"] is JsonArray
 }

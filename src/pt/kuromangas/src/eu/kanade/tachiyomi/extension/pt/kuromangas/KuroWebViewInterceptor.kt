@@ -25,15 +25,7 @@ class KuroWebViewInterceptor {
 
         handler.post {
             runCatching {
-                val currentWebView = createWebView().also { webView = it }
-
-                configureCookies(currentWebView)
-                currentWebView.settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    databaseEnabled = true
-                    blockNetworkImage = true
-                }
+                val currentWebView = createConfiguredWebView().also { webView = it }
 
                 currentWebView.webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, url: String) {
@@ -71,22 +63,16 @@ class KuroWebViewInterceptor {
 
         handler.post {
             runCatching {
-                val currentWebView = createWebView().also { webView = it }
+                val currentWebView = createConfiguredWebView().also { webView = it }
 
-                configureCookies(currentWebView)
                 currentWebView.clearCache(true)
                 currentWebView.clearHistory()
                 currentWebView.settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
                     loadsImagesAutomatically = false
-                    blockNetworkImage = true
-                    databaseEnabled = true
                     allowContentAccess = true
                     allowFileAccess = true
                     cacheMode = WebSettings.LOAD_NO_CACHE
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                    userAgentString = MOBILE_USER_AGENT
                 }
                 currentWebView.addJavascriptInterface(jsInterface, JS_INTERFACE_NAME)
 
@@ -115,6 +101,16 @@ class KuroWebViewInterceptor {
 
     private fun createWebView(): WebView = WebView(Injekt.get<Application>())
 
+    private fun createConfiguredWebView() = createWebView().apply {
+        configureCookies(this)
+        settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            blockNetworkImage = true
+        }
+    }
+
     private fun configureCookies(webView: WebView) {
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
@@ -142,19 +138,21 @@ class KuroWebViewInterceptor {
             capturedData = data
             latch.countDown()
         }
-
-        @JavascriptInterface
-        fun onDebug(message: String) = Unit
     }
 
     companion object {
         private const val TIMEOUT_SECONDS = 30L
         private const val MIN_CAPTURE_LENGTH = 50
         private const val JS_INTERFACE_NAME = "KuroBridge"
-        private const val LOCAL_STORAGE_TOKEN_SCRIPT = "window.localStorage.getItem('token')"
+        private const val LOCAL_STORAGE_TOKEN_SCRIPT = """
+            (function () {
+                var auth = window.localStorage.getItem('kuro:auth') || '';
+                var match = auth.match(/"accessToken"\s*:\s*"([^"]+)"/);
+                if (match && match[1]) return match[1];
+                return null;
+            })()
+        """
         private const val HOOK_SCRIPT_PATH = "/assets/webview-hook.js"
-        private const val MOBILE_USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
 
         private val webviewHookScript by lazy {
             KuroWebViewInterceptor::class.java.getResource(HOOK_SCRIPT_PATH)?.readText()

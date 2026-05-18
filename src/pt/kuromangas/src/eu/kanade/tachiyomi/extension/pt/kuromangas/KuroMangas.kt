@@ -1,9 +1,5 @@
 package eu.kanade.tachiyomi.extension.pt.kuromangas
 
-import android.app.Application
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
@@ -13,16 +9,16 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import keiyoushi.utils.JSON_MEDIA_TYPE
+import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
+import keiyoushi.utils.toJsonString
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -31,7 +27,7 @@ import java.util.TimeZone
 class KuroMangas : HttpSource() {
 
     override val name = "KuroMangas"
-    override val baseUrl = "https://beta.kuromangas.com"
+    override val baseUrl = "https://kuromangas.com"
     override val lang = "pt-BR"
     override val supportsLatest = true
 
@@ -60,7 +56,7 @@ class KuroMangas : HttpSource() {
 
                 response.close()
                 clearToken()
-                requireLoginInWebView()
+                requireKuroLogin()
             }
             .addInterceptor(
                 KuroWebViewDecrypt(
@@ -91,32 +87,20 @@ class KuroMangas : HttpSource() {
     }
 
     private fun getToken(): String {
-        val savedToken = preferences.getString(PREF_TOKEN, "")?.trim().orEmpty()
+        val savedToken = preferences.getString(PREF_ACCESS_TOKEN, "")?.trim().orEmpty()
         if (savedToken.isNotEmpty()) {
             return savedToken
         }
 
         val token = webViewInterceptor.getLocalStorageToken(baseUrl).orEmpty()
         if (token.isNotEmpty()) {
-            preferences.edit().putString(PREF_TOKEN, token).apply()
+            preferences.edit().putString(PREF_ACCESS_TOKEN, token).apply()
         }
         return token
     }
 
     private fun clearToken() {
-        preferences.edit().remove(PREF_TOKEN).apply()
-    }
-
-    private fun showToast(message: String) {
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(Injekt.get<Application>(), message, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun requireLoginInWebView(): Nothing {
-        val message = "Faca login na WebView da KuroMangas e tente novamente"
-        showToast(message)
-        throw IOException(message)
+        preferences.edit().remove(PREF_ACCESS_TOKEN).apply()
     }
 
     private fun buildMangaListUrl(page: Int, sort: String, order: String = "DESC") = "$apiUrl/mangas".toHttpUrl().newBuilder()
@@ -126,10 +110,7 @@ class KuroMangas : HttpSource() {
         .addQueryParameter("order", order)
         .build()
 
-    private fun parseMangaList(response: Response): MangasPage {
-        val result = response.parseAs<MangaListResponse>()
-        return MangasPage(result.data.map { it.toSManga(cdnUrl) }, result.pagination.hasNextPage())
-    }
+    private fun parseMangaList(response: Response): MangasPage = response.parseAs<MangaListResponse>().toMangasPage(cdnUrl)
 
     override fun popularMangaRequest(page: Int) = GET(buildMangaListUrl(page, "view_count"), headers)
     override fun popularMangaParse(response: Response) = parseMangaList(response)
@@ -144,7 +125,7 @@ class KuroMangas : HttpSource() {
 
         if (query.isNotBlank()) url.addQueryParameter("search", query)
 
-        filters.filterIsInstance<SortFilter>().firstOrNull()?.let {
+        filters.firstInstanceOrNull<SortFilter>()?.let {
             url.addQueryParameter("sort", it.selectedSort)
             url.addQueryParameter("order", it.selectedOrder)
         } ?: run {
@@ -159,45 +140,46 @@ class KuroMangas : HttpSource() {
 
     override fun mangaDetailsRequest(manga: SManga) = GET("$apiUrl/mangas/${manga.url.substringAfterLast("/")}", headers)
 
-    override fun mangaDetailsParse(response: Response) = response.parseAs<MangaDetailsResponse>().manga.toSManga(cdnUrl)
+    override fun mangaDetailsParse(response: Response) = response.parseAs<MangaDetailsResponse>().toSManga(cdnUrl)
 
     override fun chapterListRequest(manga: SManga) = mangaDetailsRequest(manga)
 
-    override fun chapterListParse(response: Response): List<SChapter> {
-        val result = response.parseAs<MangaDetailsResponse>()
-        return result.chapters.map { it.toSChapter(result.manga.id, dateFormat) }.sortedByDescending { it.chapter_number }
-    }
+    override fun chapterListParse(response: Response): List<SChapter> = response.parseAs<MangaDetailsResponse>().toChapterList(dateFormat)
 
     override fun pageListRequest(chapter: SChapter): Request {
-        if (getToken().isEmpty()) requireLoginInWebView()
+        if (getToken().isEmpty()) requireKuroLogin()
 
-        val parts = chapter.url.split("/").filter { it.isNotEmpty() }
-        val mangaId = parts.getOrNull(1) ?: ""
-        val chapterId = parts.getOrNull(2) ?: chapter.url.substringAfterLast("/")
-        val body = """{"page":1}""".toRequestBody("application/json".toMediaType())
+        val (mangaId, chapterId) = chapter.kuroIds()
+        val body = ChapterReadRequest(FIRST_PAGE).toJsonString().toRequestBody(JSON_MEDIA_TYPE)
         return POST("$apiUrl/chapters/$chapterId/read?manga_id=$mangaId", headers, body)
     }
 
-    override fun pageListParse(response: Response): List<Page> = response.parseAs<ChapterPagesResponse>().pages.mapIndexed { index, pageUrl ->
-        val fixedUrl = pageUrl.replaceFirst("^/uploads/".toRegex(), "/")
-        Page(index, imageUrl = if (fixedUrl.startsWith("http")) fixedUrl else "$cdnUrl$fixedUrl")
-    }
+    override fun pageListParse(response: Response): List<Page> = response.parseAs<ChapterPagesResponse>().toPages(cdnUrl)
 
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
-    override fun imageRequest(page: Page) = GET(page.imageUrl!!, headersBuilder().set("Referer", baseUrl).build())
+    override fun imageRequest(page: Page): Request {
+        val imageUrl = page.imageUrl ?: throw IOException("Imagem ausente na pagina ${page.index}")
+        return GET(imageUrl, headersBuilder().set("Referer", baseUrl).build())
+    }
 
     override fun getMangaUrl(manga: SManga) = "$baseUrl/manga/${manga.url.substringAfterLast("/")}"
 
     override fun getChapterUrl(chapter: SChapter): String {
-        val parts = chapter.url.removePrefix("/chapter/").split("/")
-        return "$baseUrl/reader/${parts.getOrNull(0) ?: ""}/${parts.getOrNull(1) ?: ""}"
+        val (mangaId, chapterId) = chapter.kuroIds()
+        return "$baseUrl/read/$mangaId/$chapterId"
     }
 
     override fun getFilterList() = getFilters()
 
+    private fun SChapter.kuroIds(): Pair<String, String> {
+        val parts = url.removePrefix("/chapter/").split("/")
+        return parts[0] to parts[1]
+    }
+
     companion object {
+        private const val FIRST_PAGE = 1
         private const val PAGE_LIMIT = 24
-        private const val PREF_TOKEN = "pref_token"
+        private const val PREF_ACCESS_TOKEN = "pref_access_token"
     }
 }
