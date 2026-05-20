@@ -39,8 +39,7 @@ class KuroMangas : HttpSource() {
 
     override val client by lazy {
         val cdnHost = cdnUrl.toHttpUrl().host
-
-        network.cloudflareClient.newBuilder()
+        network.client.newBuilder()
             .rateLimit(2)
             .addInterceptor { chain ->
                 val request = chain.request()
@@ -166,8 +165,57 @@ class KuroMangas : HttpSource() {
     override fun getMangaUrl(manga: SManga) = "$baseUrl/manga/${manga.url.substringAfterLast("/")}"
 
     override fun getChapterUrl(chapter: SChapter): String {
-        val (mangaId, chapterId) = chapter.kuroIds()
-        return "$baseUrl/read/$mangaId/$chapterId"
+        // chapter.url format: /chapter/{mangaId}/{chapterId}
+        val parts = chapter.url.removePrefix("/chapter/").split("/")
+        val mangaId = parts.getOrNull(0) ?: ""
+        val chapterId = parts.getOrNull(1) ?: ""
+        return "$baseUrl/reader/$mangaId/$chapterId"
+    }
+
+    // ============================= Auth ===================================
+
+    private fun login(email: String, password: String): String {
+        val payload = buildJsonObject {
+            put("email", email)
+            put("password", password)
+        }.toString()
+        val requestBody = payload.toRequestBody(JSON_MEDIA_TYPE)
+        val request = POST("$apiUrl/auth/login", headers, requestBody)
+        val response = network.client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            response.close()
+            throw Exception("Login failed: ${response.code}")
+        }
+        return response.parseAs<LoginResponse>().token
+    }
+
+    // ============================= Preferences ============================
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        val warning = "⚠️ Os dados inseridos nesta seção serão usados somente para realizar o login na fonte"
+        val message = "Insira %s para prosseguir com o acesso aos recursos disponíveis na fonte"
+
+        EditTextPreference(screen.context).apply {
+            key = PREF_EMAIL
+            title = "📧 Email"
+            summary = "Email de acesso"
+            dialogMessage = buildString {
+                appendLine(message.format("seu email"))
+                append("\n$warning")
+            }
+            setDefaultValue("")
+        }.let(screen::addPreference)
+
+        EditTextPreference(screen.context).apply {
+            key = PREF_PASSWORD
+            title = "🔑 Senha"
+            summary = "Senha de acesso"
+            dialogMessage = buildString {
+                appendLine(message.format("sua senha"))
+                append("\n$warning")
+            }
+            setDefaultValue("")
+        }.let(screen::addPreference)
     }
 
     override fun getFilterList() = getFilters()
