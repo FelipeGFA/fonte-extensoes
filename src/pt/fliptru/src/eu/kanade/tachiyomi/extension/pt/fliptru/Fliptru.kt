@@ -167,9 +167,14 @@ class Fliptru : HttpSource() {
 
     override fun pageListParse(response: Response): List<Page> = response.use { res ->
         val chapterUrl = res.request.url.toString()
-        val pages = res.asJsoup().select(".comic_page_image img[src]").mapIndexed { index, element ->
-            Page(index, chapterUrl, imageUrl = element.absUrl("src"))
-        }
+        val document = res.asJsoup()
+        val urls = document.select(".comic_page_image img[src]").map { it.absUrl("src") }
+            .ifEmpty {
+                document.select(".comic-page-image[style*=background-image]")
+                    .mapNotNull { it.attr("style").extractBackgroundUrl() }
+            }
+
+        val pages = urls.mapIndexed { index, url -> Page(index, chapterUrl, imageUrl = url) }
 
         pages.also {
             if (it.isEmpty()) {
@@ -314,7 +319,7 @@ class Fliptru : HttpSource() {
         const val CHAPTER_ORDER = "desc"
         const val SEARCH_MIN_LENGTH = 3
 
-        val BACKGROUND_IMAGE_REGEX = """background:\s*url\(['"]?([^)'"]+)['"]?\)""".toRegex()
+        val BACKGROUND_IMAGE_REGEX = """background(?:-image)?:\s*url\(['"]?([^)'"]+)['"]?\)""".toRegex()
 
         val LISTS = arrayOf(
             "Mais populares" to POPULAR_PATH,
