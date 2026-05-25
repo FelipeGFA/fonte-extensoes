@@ -51,19 +51,16 @@ private fun JsonElement.matchesSeriesPayload(expectedSlug: String): Boolean {
         ?: payload["seriesSlug"]?.jsonPrimitive?.contentOrNull
     if (payloadSlug != expectedSlug) return false
 
-    val chapters = payload["capitulos_lista"] as? JsonArray
-        ?: payload["chapters"] as? JsonArray
-        ?: return false
+    val chapters = payload["capitulos_lista"] as? JsonArray ?: return false
     val hasValidChapterShape = chapters.isEmpty() || chapters.any { chapter ->
         val chapterObject = chapter as? JsonObject ?: return@any false
         "id" in chapterObject && "number" in chapterObject
     }
 
-    return ("catalogId" in payload || "seriesId" in payload || "contentRef" in payload || "refId" in payload) &&
-        hasValidChapterShape &&
+    return hasValidChapterShape &&
         (
             "chapterTotal" in payload ||
-                "totalChapters" in payload ||
+                "refId" in payload ||
                 "coverImage" in payload ||
                 "description" in payload
             )

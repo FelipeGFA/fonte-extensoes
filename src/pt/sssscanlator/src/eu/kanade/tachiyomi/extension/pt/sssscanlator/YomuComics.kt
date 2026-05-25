@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.extractNextJs
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.parseAs
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -30,7 +31,7 @@ class YomuComics : HttpSource() {
     override val id = 1497838059713668619
 
     override val client: OkHttpClient = network.client.newBuilder()
-        .rateLimit(2)
+        .rateLimit(5)
         .build()
 
     override fun headersBuilder() = super.headersBuilder()
@@ -121,19 +122,15 @@ class YomuComics : HttpSource() {
         return GET(chapterPageUrl, requestHeaders)
     }
 
-    override fun pageListParse(response: Response): List<Page> = response.use { res ->
-        val document = res.asJsoup()
-        val pageUrls = document.select(PAGE_IMAGE_SELECTOR)
-            .mapNotNull { image ->
-                image.absUrl("src")
-                    .ifEmpty { image.attr("src") }
-                    .replace(" ", "%20")
-                    .takeIf(String::isNotEmpty)
-            }
-            .distinct()
+    override fun pageListParse(response: Response): List<Page> {
+        val data = response.extractNextJs<ChapterPageDto> {
+            it is JsonObject &&
+                it["chapter"] is JsonObject &&
+                (it["chapter"] as JsonObject)["imagens_lista"] is JsonArray
+        }
 
-        if (pageUrls.isNotEmpty()) {
-            return@use pageUrls.mapIndexed { index, imageUrl ->
+        if (data != null && data.chapter.images.isNotEmpty()) {
+            return data.chapter.images.mapIndexed { index, imageUrl ->
                 Page(index, imageUrl = imageUrl)
             }
         }
@@ -163,7 +160,7 @@ class YomuComics : HttpSource() {
 
     private fun parseLibraryResponse(response: Response): MangasPage {
         val result = response.parseAs<LibraryResponseDto>()
-        val mangas = result.data.map(LibraryMangaDto::toSManga)
+        val mangas = (result.mangas + result.series).map { it.toSManga() }
         val hasNextPage = result.pagination.page < result.pagination.totalPages
         return MangasPage(mangas, hasNextPage)
     }
