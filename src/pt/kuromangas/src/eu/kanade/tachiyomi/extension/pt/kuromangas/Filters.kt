@@ -15,10 +15,11 @@ class SortFilter(displayName: String, private val sortOptions: List<Pair<String,
 }
 
 private val SORT_OPTIONS = listOf(
+    "Mais Populares" to "view_count",
     "Melhor Avaliados" to "average_rating",
     "Mais Antigos" to "created_at",
     "Titulo (A-Z)" to "title",
     "Titulo (Z-A)" to "title",
 )
 
-private val ASCENDING_SORT_OPTIONS = 1..2
+private val ASCENDING_SORT_OPTIONS = 2..3

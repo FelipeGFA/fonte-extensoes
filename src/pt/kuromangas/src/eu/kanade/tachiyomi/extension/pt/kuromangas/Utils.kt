@@ -9,10 +9,14 @@ import uy.kohesive.injekt.api.get
 import java.io.IOException
 
 internal fun requireKuroLogin(): Nothing {
-    Handler(Looper.getMainLooper()).post {
-        Toast.makeText(Injekt.get<Application>(), LOGIN_REQUIRED_MESSAGE, Toast.LENGTH_LONG).show()
-    }
+    showKuroToast(LOGIN_REQUIRED_MESSAGE)
     throw IOException(LOGIN_REQUIRED_MESSAGE)
 }
 
-private const val LOGIN_REQUIRED_MESSAGE = "Faca login na WebView da KuroMangas e tente novamente"
+internal fun showKuroToast(message: String) {
+    Handler(Looper.getMainLooper()).post {
+        Toast.makeText(Injekt.get<Application>(), message, Toast.LENGTH_LONG).show()
+    }
+}
+
+internal const val LOGIN_REQUIRED_MESSAGE = "Configure email e senha nas configuracoes da fonte KuroMangas"

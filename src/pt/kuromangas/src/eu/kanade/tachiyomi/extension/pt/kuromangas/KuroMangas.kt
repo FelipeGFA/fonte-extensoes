@@ -1,30 +1,33 @@
 package eu.kanade.tachiyomi.extension.pt.kuromangas
 
+import android.text.InputType
+import androidx.preference.EditTextPreference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
+import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import keiyoushi.utils.JSON_MEDIA_TYPE
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
-import keiyoushi.utils.toJsonString
+import kotlinx.serialization.json.JsonObject
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
-class KuroMangas : HttpSource() {
+class KuroMangas :
+    HttpSource(),
+    ConfigurableSource {
 
     override val name = "KuroMangas"
     override val baseUrl = "https://kuromangas.com"
@@ -35,36 +38,29 @@ class KuroMangas : HttpSource() {
     private val cdnUrl = "https://cdn.kuromangas.com"
 
     private val preferences by getPreferencesLazy()
-    private val webViewInterceptor = KuroWebViewInterceptor()
+
+    private val apiDecryptInterceptor = ApiDecryptInterceptor()
+
+    private val loginClient by lazy {
+        network.cloudflareClient.newBuilder()
+            .addInterceptor(apiDecryptInterceptor)
+            .build()
+    }
+
+    private val tokenProvider by lazy {
+        AuthTokenProvider(
+            preferences = preferences,
+            client = loginClient,
+            apiUrl = apiUrl,
+            loginHeaders = loginHeaders().build(),
+        )
+    }
 
     override val client by lazy {
-        val cdnHost = cdnUrl.toHttpUrl().host
-
         network.cloudflareClient.newBuilder()
             .rateLimit(2)
-            .addInterceptor { chain ->
-                val request = chain.request()
-                if (request.url.host == cdnHost) {
-                    return@addInterceptor chain.proceed(request)
-                }
-
-                val token = getToken()
-                val authenticatedRequest = request.withAuth(token)
-                val response = chain.proceed(authenticatedRequest)
-
-                if (response.code != 401) return@addInterceptor response
-
-                response.close()
-                clearToken()
-                requireKuroLogin()
-            }
-            .addInterceptor(
-                KuroWebViewDecrypt(
-                    baseUrl = baseUrl,
-                    tokenProvider = { getToken() },
-                    webViewInterceptor = webViewInterceptor,
-                ),
-            )
+            .addInterceptor(AuthInterceptor(tokenProvider))
+            .addInterceptor(apiDecryptInterceptor)
             .build()
     }
 
@@ -72,35 +68,14 @@ class KuroMangas : HttpSource() {
         .add("Accept", "application/json")
         .add("Referer", baseUrl)
 
+    private fun loginHeaders() = headersBuilder()
+        .set("Content-Type", "application/json")
+        .set("Referer", "$baseUrl/login")
+
     private val dateFormat by lazy {
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
-    }
-
-    private fun Request.withAuth(token: String): Request = if (token.isNotBlank()) {
-        newBuilder()
-            .header("Authorization", "Bearer $token")
-            .build()
-    } else {
-        this
-    }
-
-    private fun getToken(): String {
-        val savedToken = preferences.getString(PREF_ACCESS_TOKEN, "")?.trim().orEmpty()
-        if (savedToken.isNotEmpty()) {
-            return savedToken
-        }
-
-        val token = webViewInterceptor.getLocalStorageToken(baseUrl).orEmpty()
-        if (token.isNotEmpty()) {
-            preferences.edit().putString(PREF_ACCESS_TOKEN, token).apply()
-        }
-        return token
-    }
-
-    private fun clearToken() {
-        preferences.edit().remove(PREF_ACCESS_TOKEN).apply()
     }
 
     private fun buildMangaListUrl(page: Int, sort: String, order: String = "DESC") = "$apiUrl/mangas".toHttpUrl().newBuilder()
@@ -110,7 +85,9 @@ class KuroMangas : HttpSource() {
         .addQueryParameter("order", order)
         .build()
 
-    private fun parseMangaList(response: Response): MangasPage = response.parseAs<MangaListResponse>().toMangasPage(cdnUrl)
+    private fun parseMangaList(response: Response): MangasPage = response.use {
+        it.parseAs<MangaListResponse>().toMangasPage(cdnUrl)
+    }
 
     override fun popularMangaRequest(page: Int) = GET(buildMangaListUrl(page, "view_count"), headers)
     override fun popularMangaParse(response: Response) = parseMangaList(response)
@@ -129,7 +106,7 @@ class KuroMangas : HttpSource() {
             url.addQueryParameter("sort", it.selectedSort)
             url.addQueryParameter("order", it.selectedOrder)
         } ?: run {
-            url.addQueryParameter("sort", "created_at")
+            url.addQueryParameter("sort", "view_count")
             url.addQueryParameter("order", "DESC")
         }
 
@@ -140,21 +117,26 @@ class KuroMangas : HttpSource() {
 
     override fun mangaDetailsRequest(manga: SManga) = GET("$apiUrl/mangas/${manga.url.substringAfterLast("/")}", headers)
 
-    override fun mangaDetailsParse(response: Response) = response.parseAs<MangaDetailsResponse>().toSManga(cdnUrl)
+    override fun mangaDetailsParse(response: Response) = response.use {
+        it.parseAs<MangaDetailsResponse>().toSManga(cdnUrl)
+    }
 
     override fun chapterListRequest(manga: SManga) = mangaDetailsRequest(manga)
 
-    override fun chapterListParse(response: Response): List<SChapter> = response.parseAs<MangaDetailsResponse>().toChapterList(dateFormat)
-
-    override fun pageListRequest(chapter: SChapter): Request {
-        if (getToken().isEmpty()) requireKuroLogin()
-
-        val (mangaId, chapterId) = chapter.kuroIds()
-        val body = ChapterReadRequest(FIRST_PAGE).toJsonString().toRequestBody(JSON_MEDIA_TYPE)
-        return POST("$apiUrl/chapters/$chapterId/read?manga_id=$mangaId", headers, body)
+    override fun chapterListParse(response: Response): List<SChapter> = response.use {
+        it.parseAs<MangaDetailsResponse>().toChapterList(dateFormat)
     }
 
-    override fun pageListParse(response: Response): List<Page> = response.parseAs<ChapterPagesResponse>().toPages(cdnUrl)
+    override fun pageListRequest(chapter: SChapter): Request {
+        tokenProvider.requireToken()
+
+        val chapterId = chapter.kuroIds().second
+        return GET("$apiUrl/chapters/$chapterId", headers)
+    }
+
+    override fun pageListParse(response: Response): List<Page> = response.use {
+        it.parseAs<JsonObject>().toPages(cdnUrl)
+    }
 
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
@@ -172,14 +154,54 @@ class KuroMangas : HttpSource() {
 
     override fun getFilterList() = getFilters()
 
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        val warning = "Os dados inseridos nesta secao serao usados somente para realizar o login na fonte."
+        val message = "Insira %s para prosseguir com o acesso aos recursos disponiveis na fonte."
+
+        EditTextPreference(screen.context).apply {
+            key = AuthTokenProvider.EMAIL_PREF
+            title = "E-mail"
+            summary = "E-mail de acesso"
+            dialogMessage = buildString {
+                appendLine(message.format("seu e-mail"))
+                append("\n$warning")
+            }
+            setDefaultValue("")
+            setOnPreferenceChangeListener { _, newValue ->
+                tokenProvider.clear()
+                val password = preferences.getString(AuthTokenProvider.PASSWORD_PREF, "").orEmpty()
+                tokenProvider.checkLogin(newValue as String, password)
+                true
+            }
+        }.let(screen::addPreference)
+
+        EditTextPreference(screen.context).apply {
+            key = AuthTokenProvider.PASSWORD_PREF
+            title = "Senha"
+            summary = "Senha de acesso"
+            dialogMessage = buildString {
+                appendLine(message.format("sua senha"))
+                append("\n$warning")
+            }
+            setDefaultValue("")
+            setOnBindEditTextListener {
+                it.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
+            setOnPreferenceChangeListener { _, newValue ->
+                tokenProvider.clear()
+                val email = preferences.getString(AuthTokenProvider.EMAIL_PREF, "").orEmpty()
+                tokenProvider.checkLogin(email, newValue as String)
+                true
+            }
+        }.let(screen::addPreference)
+    }
+
     private fun SChapter.kuroIds(): Pair<String, String> {
         val parts = url.removePrefix("/chapter/").split("/")
         return parts[0] to parts[1]
     }
 
     companion object {
-        private const val FIRST_PAGE = 1
         private const val PAGE_LIMIT = 24
-        private const val PREF_ACCESS_TOKEN = "pref_access_token"
     }
 }

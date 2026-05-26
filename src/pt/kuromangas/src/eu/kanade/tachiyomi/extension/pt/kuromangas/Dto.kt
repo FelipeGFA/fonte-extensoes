@@ -7,7 +7,11 @@ import eu.kanade.tachiyomi.source.model.SManga
 import keiyoushi.utils.tryParse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNames
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import java.text.SimpleDateFormat
 
 @Serializable
@@ -100,14 +104,40 @@ class ChapterDto(
     }
 }
 
-@Serializable
-class ChapterPagesResponse(private val pages: List<String>) {
-    fun toPages(cdnUrl: String) = pages.mapIndexed { index, pageUrl ->
+fun JsonObject.toPages(cdnUrl: String): List<Page> {
+    val pages = findPages() ?: error("Campo pages ausente na resposta de leitura da KuroMangas")
+
+    return pages.mapIndexedNotNull { index, page ->
+        val pageUrl = page.jsonPrimitive.contentOrNull
+            ?.takeIf { it.isNotBlank() }
+            ?: return@mapIndexedNotNull null
+
         val path = pageUrl.removePrefix("/uploads/").removePrefix("/")
         val imageUrl = if (pageUrl.startsWith("http")) pageUrl else "$cdnUrl/$path"
         Page(index, imageUrl = imageUrl)
     }
 }
 
+private fun JsonObject.findPages(): JsonArray? {
+    (this["pages"] as? JsonArray)?.let { return it }
+
+    values.forEach { value ->
+        (value as? JsonObject)?.findPages()?.let { return it }
+    }
+
+    return null
+}
+
 @Serializable
-class ChapterReadRequest(private val page: Int)
+class LoginRequest(
+    private val email: String,
+    private val password: String,
+    private val rememberMe: Boolean,
+)
+
+@Serializable
+class LoginResponse(
+    private val token: String? = null,
+) {
+    fun tokenOrNull() = token?.takeIf { it.isNotBlank() }
+}
