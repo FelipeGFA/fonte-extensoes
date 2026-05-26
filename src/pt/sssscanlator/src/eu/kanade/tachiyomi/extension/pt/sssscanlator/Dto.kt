@@ -60,7 +60,7 @@ class SeriesChapterDto(
         val chapterNumberLabel = number.toChapterNumberString()
 
         url = "/ler/$mangaSlug/$chapterNumberLabel?chapterId=$chapterId"
-        name = formatChapterTitle(title, chapterNumberLabel)
+        name = title?.takeUnless { it.isBlank() } ?: "Capítulo $chapterNumberLabel"
         chapter_number = number.toFloat()
         date_upload = parseChapterDate(releaseAt, releaseDate)
     }
@@ -76,17 +76,9 @@ class SeriesChapterDto(
             SimpleDateFormat("dd/MM/yyyy", Locale.ROOT)
         }
 
-        private val CHAPTER_TITLE_PREFIX = Regex("^CAP[IÍ]TULO\\s+", RegexOption.IGNORE_CASE)
-
         private fun parseChapterDate(releaseAt: String?, releaseDate: String?): Long {
             RELEASE_AT_MILLIS.tryParse(releaseAt).takeIf { it != 0L }?.let { return it }
             return RELEASE_DATE.tryParse(releaseDate)
-        }
-
-        private fun formatChapterTitle(rawTitle: String?, chapterNumberLabel: String): String {
-            val cleanedTitle = rawTitle?.takeUnless { it.isBlank() }
-                ?: return "Capítulo $chapterNumberLabel"
-            return cleanedTitle.replaceFirst(CHAPTER_TITLE_PREFIX, "Capítulo ")
         }
     }
 }

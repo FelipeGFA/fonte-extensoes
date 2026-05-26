@@ -12,6 +12,8 @@ import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.extractNextJs
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.parseAs
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -117,6 +119,7 @@ class YomuComics : HttpSource() {
 
         val requestHeaders = headers.newBuilder()
             .set("Referer", chapterPageUrl)
+            .set("RSC", "1")
             .build()
 
         return GET(chapterPageUrl, requestHeaders)
@@ -204,7 +207,6 @@ class YomuComics : HttpSource() {
         const val DEFAULT_TYPE = "all"
         const val DEFAULT_STATUS = "all"
         const val DEFAULT_SORT = "popular"
-        private const val PAGE_IMAGE_SELECTOR = "img[src*=/obras/][src*=page]"
     }
 
     private val bibliotecaHeaders by lazy {

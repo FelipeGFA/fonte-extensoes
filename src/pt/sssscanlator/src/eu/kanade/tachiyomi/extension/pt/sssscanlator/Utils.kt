@@ -47,9 +47,7 @@ internal fun parseStatus(statusText: String?): Int = when (statusText?.lowercase
 
 private fun JsonElement.matchesSeriesPayload(expectedSlug: String): Boolean {
     val payload = this as? JsonObject ?: return false
-    val payloadSlug = payload["slug"]?.jsonPrimitive?.contentOrNull
-        ?: payload["seriesSlug"]?.jsonPrimitive?.contentOrNull
-    if (payloadSlug != expectedSlug) return false
+    if (payload["slug"]?.jsonPrimitive?.contentOrNull != expectedSlug) return false
 
     val chapters = payload["capitulos_lista"] as? JsonArray ?: return false
     val hasValidChapterShape = chapters.isEmpty() || chapters.any { chapter ->
