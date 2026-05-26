@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.source.model.SManga
 import keiyoushi.utils.tryParse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonNames
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
