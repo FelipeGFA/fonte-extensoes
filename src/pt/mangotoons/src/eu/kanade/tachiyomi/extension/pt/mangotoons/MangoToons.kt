@@ -8,6 +8,8 @@ class MangoToons : MangoTheme() {
 
     override val baseUrl = "https://mangotoons.com"
 
+    override val apiUrl = "https://api.mangotoons.com/api"
+
     override val lang = "pt-BR"
 
     override val encryptionKey = "abmPisXlFjOLVTnYhbYQTpkWJtOGKwVttzLqstfjRBNVaEtQYG"
