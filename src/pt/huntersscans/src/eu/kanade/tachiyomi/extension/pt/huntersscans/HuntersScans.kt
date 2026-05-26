@@ -43,6 +43,8 @@ class HuntersScans :
 
     override val useLoadMoreRequest = LoadMoreStrategy.Always
 
+    override val pageListParseSelector = ".reading-content img"
+
     override val mangaDetailsSelectorStatus = "div.summary-heading:contains(Status) + div"
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable { fetchAllChapters(manga) }
@@ -72,10 +74,10 @@ class HuntersScans :
         val payload = PAYLOAD_REGEX.find(script)?.groupValues?.get(1)
         val sk = SK_REGEX.find(script)?.groupValues?.get(1)
 
-        if (payload != null && sk != null) {
+        if (!payload.isNullOrEmpty() && !sk.isNullOrEmpty()) {
             try {
                 val urls = HuntersScanDescrambler.decryptHuntersPayload(payload, sk)
-                return urls.mapIndexed { index, url -> Page(index, document.location(), url) }
+                return urls.mapIndexed { index, url -> Page(index, document.location(), imageUrl = url) }
             } catch (e: Exception) {
             }
         }
