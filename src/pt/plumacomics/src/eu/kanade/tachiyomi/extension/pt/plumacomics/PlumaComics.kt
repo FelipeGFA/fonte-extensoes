@@ -11,11 +11,16 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.extractNextJs
 import keiyoushi.utils.parseAs
-import keiyoushi.utils.toJsonString
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
+import org.jsoup.nodes.Document
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 class PlumaComics : HttpSource() {
 
@@ -28,32 +33,55 @@ class PlumaComics : HttpSource() {
     override val supportsLatest: Boolean = true
 
     override val client = super.client.newBuilder()
-        .rateLimit(3, 1)
-        .addInterceptor(ImageDecryptInterceptor())
+        .rateLimit(3)
         .build()
 
     override val versionId = 5
 
-    // Popular
-    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/series?sort=popular", headers)
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
 
-    override fun popularMangaParse(response: Response): MangasPage {
-        val document = response.asJsoup()
-        val mangas = document.select("a.group[href*=series]").map { element ->
-            SManga.create().apply {
-                title = element.selectFirst("h3")!!.text()
-                thumbnail_url = element.selectFirst("img")?.absUrl("src")
-                setUrlWithoutDomain(element.absUrl("href"))
+    override fun headersBuilder() = super.headersBuilder()
+        .set("Referer", "$baseUrl/")
+        .set("Accept-Encoding", "gzip")
+
+    // Popular
+
+    override fun popularMangaRequest(page: Int): Request {
+        val url = "$baseUrl/series".toHttpUrl().newBuilder()
+            .addQueryParameter("sort", "popular")
+            .apply {
+                if (page > 1) {
+                    addQueryParameter("page", page.toString())
+                }
             }
-        }
-        return MangasPage(mangas, hasNextPage = document.selectFirst("a.btn-primary[href*=page]") != null)
+            .build()
+
+        return GET(url, headers)
+    }
+
+    override fun popularMangaParse(response: Response): MangasPage = response.use {
+        val document = it.asJsoup()
+        val payload = document.extractNextJs<JsonObject>(JsonElement::isCatalogGridPayload)
+            ?: throw IOException("Nao foi possivel extrair o catalogo popular")
+
+        val currentPage = it.request.url.queryParameter("page")?.toIntOrNull() ?: 1
+        MangasPage(payload.toCatalogMangaList(baseUrl), document.hasNextPage("page", currentPage))
     }
 
     // Latest
 
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/series", headers)
+    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/?aba=$page", headers)
 
-    override fun latestUpdatesParse(response: Response): MangasPage = popularMangaParse(response)
+    override fun latestUpdatesParse(response: Response): MangasPage = response.use {
+        val document = it.asJsoup()
+        val payload = document.extractNextJs<LatestPayloadDto>(JsonElement::isLatestPayload)
+            ?: throw IOException("Nao foi possivel extrair as atualizacoes")
+
+        val currentPage = it.request.url.queryParameter("aba")?.toIntOrNull() ?: 1
+        MangasPage(payload.toMangaList(baseUrl), document.hasNextPage("aba", currentPage))
+    }
 
     // Search
 
@@ -64,69 +92,98 @@ class PlumaComics : HttpSource() {
         return GET(url, headers)
     }
 
-    override fun searchMangaParse(response: Response): MangasPage {
-        val dto = response.parseAs<SearchDto>()
-        val mangas = dto.results.map {
-            SManga.create().apply {
-                title = it.title
-                thumbnail_url = "$baseUrl/api/cover/${it.coverPath}"
-                url = "/series/${it.slug}"
-            }
-        }
-
-        return MangasPage(mangas, hasNextPage = false)
+    override fun searchMangaParse(response: Response): MangasPage = response.use {
+        MangasPage(it.parseAs<SearchDto>().toMangaList(baseUrl), hasNextPage = false)
     }
 
     // Details
 
-    override fun mangaDetailsParse(response: Response): SManga {
-        val document = response.asJsoup()
-        return SManga.create().apply {
-            title = document.selectFirst("meta[property*=title]")!!.text().substringBeforeLast("|")
-            thumbnail_url = document.selectFirst("img.cover-img")?.absUrl("src")
-            description = document.selectFirst("div.card > p.text-sm")?.text()
-            genre = document.select(".flex.flex-wrap > span").joinToString { it.text() }
-            document.selectFirst(".flex.items-center span.text-xs.font-bold.uppercase:last-child")?.text()?.let {
-                status = when (it.lowercase()) {
-                    "em andamento" -> SManga.ONGOING
-                    else -> SManga.UNKNOWN
-                }
-            }
-            setUrlWithoutDomain(document.location())
-        }
+    override fun mangaDetailsParse(response: Response): SManga = response.use {
+        val document = it.asJsoup()
+        val payload = document.extractNextJs<JsonObject>(JsonElement::isSeriesDetailsPayload)
+            ?: throw IOException("Nao foi possivel extrair os detalhes da obra")
+
+        payload.toDetailsManga(baseUrl, it.request.url.encodedPath)
     }
 
     // Chapters
 
-    override fun chapterListParse(response: Response): List<SChapter> {
-        val document = response.asJsoup()
-        return document.select(".card a[href*=ler]").mapIndexed { index, element ->
-            SChapter.create().apply {
-                name = element.selectFirst("span:first-child")!!.text()
-                setUrlWithoutDomain(element.absUrl("href"))
-            }
-        }
+    override fun chapterListParse(response: Response): List<SChapter> = response.use {
+        val payload = it.asJsoup().extractNextJs<ChapterListDto>(JsonElement::isChapterListPayload)
+            ?: throw IOException("Nao foi possivel extrair os capitulos")
+
+        payload.toSChapterList(dateFormat)
     }
 
     // Pages
 
-    override fun pageListParse(response: Response): List<Page> {
-        val document = response.asJsoup()
-        val chapter = document.extractNextJs<ChapterDto>() ?: throw IOException("Capítulo não encontrado")
-
-        return List(document.select("#chapter-pages canvas").size) { index ->
-            Page(index, imageUrl = "$baseUrl/api/read/${chapter.chapterId}/${index + 1}?v=2#${chapter.toJsonString()}")
+    override fun pageListRequest(chapter: SChapter): Request {
+        if (chapter.url.queryParameterValue("vip") == 1 && !chapter.url.isVipChapterUnlocked()) {
+            throw IOException(VIP_CHAPTER_ERROR)
         }
+
+        val chapterId = chapter.url.extractChapterId()
+        val requestHeaders = headers.newBuilder()
+            .set("Referer", "$baseUrl/ler/$chapterId")
+            .build()
+
+        return GET("$baseUrl/api/viewer/bootstrap?c=$chapterId", requestHeaders)
+    }
+
+    override fun pageListParse(response: Response): List<Page> = response.use {
+        it.parseAs<ViewerBootstrapDto>()
+            .toPageList(baseUrl, it.request.header("Referer") ?: "$baseUrl/")
+            .also { pages ->
+                if (pages.isEmpty()) {
+                    throw IOException("Nenhuma pagina encontrada para este capitulo")
+                }
+            }
     }
 
     override fun imageRequest(page: Page): Request {
-        val url = page.imageUrl!!.toHttpUrl()
-        val dto = url.fragment!!.parseAs<ChapterDto>()
         val imageHeaders = headers.newBuilder()
-            .set("X-Pluma-Token", dto.chapterToken)
+            .set("Referer", page.url.takeIf(String::isNotEmpty) ?: "$baseUrl/")
             .build()
-        return GET(url, imageHeaders)
+
+        return GET(page.imageUrl!!, imageHeaders)
     }
 
-    override fun imageUrlParse(response: Response): String = ""
+    override fun getChapterUrl(chapter: SChapter): String = "$baseUrl/ler/${chapter.url.extractChapterId()}"
+
+    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
+
+    private fun Document.hasNextPage(parameter: String, currentPage: Int): Boolean = select("a.btn-primary[href]").any {
+        it.attr("href").queryParameterValue(parameter)?.let { targetPage ->
+            targetPage > currentPage
+        } == true
+    }
+
+    private fun String.queryParameterValue(parameter: String): Int? {
+        val query = substringAfter("?", missingDelimiterValue = "")
+            .substringBefore("#")
+        return query.split("&")
+            .firstOrNull { it.substringBefore("=") == parameter }
+            ?.substringAfter("=", missingDelimiterValue = "")
+            ?.toIntOrNull()
+    }
+
+    private fun String.queryParameterLong(parameter: String): Long? {
+        val query = substringAfter("?", missingDelimiterValue = "")
+            .substringBefore("#")
+        return query.split("&")
+            .firstOrNull { it.substringBefore("=") == parameter }
+            ?.substringAfter("=", missingDelimiterValue = "")
+            ?.toLongOrNull()
+    }
+
+    private fun String.isVipChapterUnlocked(): Boolean {
+        val unlockAt = queryParameterLong(VIP_UNLOCK_AT_QUERY)
+        return unlockAt != null && unlockAt <= System.currentTimeMillis()
+    }
+
+    private fun String.extractChapterId(): String = when {
+        startsWith("/api/viewer/bootstrap") -> substringAfter("c=").substringBefore("&")
+        startsWith("/ler/") -> substringAfterLast("/")
+        else -> substringAfterLast("/")
+    }
 }
