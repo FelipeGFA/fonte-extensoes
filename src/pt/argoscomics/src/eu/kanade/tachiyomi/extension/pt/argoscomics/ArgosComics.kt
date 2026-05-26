@@ -71,7 +71,7 @@ class ArgosComics : HttpSource() {
 
     // ======================== Details =============================
 
-    override fun getMangaUrl(manga: SManga): String = "$baseUrl${manga.url}"
+    override fun getMangaUrl(manga: SManga) = "$baseUrl${manga.url}"
 
     override fun mangaDetailsRequest(manga: SManga): Request {
         val url = getMangaUrl(manga)
@@ -87,9 +87,6 @@ class ArgosComics : HttpSource() {
     // ======================== Chapters =============================
 
     override fun chapterListRequest(manga: SManga): Request {
-        ensureLoggedIn()
-
-        val pageUrl = getMangaUrl(manga)
         val chaptersHeaders = headers.newBuilder()
             .set("Next-Action", CHAPTERS_TOKEN)
             .build()
@@ -121,7 +118,7 @@ class ArgosComics : HttpSource() {
         return response.extractNextJs<PagesDto>()!!.toPageList()
     }
 
-    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response) = ""
 
     companion object {
         private const val SEARCH_TOKEN = "406369e6483a4fe640a38cebf46ca5ea2385392f8d"
