@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.pt.manhastro
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class ApiResponse<T>(
@@ -18,7 +19,7 @@ data class MangaDto(
     @SerialName("descricao_brasil") private val descricaoBrasil: String? = null,
     private val imagem: String? = null,
     private val capa: String? = null,
-    val generos: String? = null,
+    val generos: JsonElement? = null,
     @SerialName("views_mes") private val viewsMes: String? = null,
     @SerialName("qnt_capitulo") val qntCapitulo: Int? = null,
 ) {

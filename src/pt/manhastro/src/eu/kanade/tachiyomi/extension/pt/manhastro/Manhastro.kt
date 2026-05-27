@@ -15,6 +15,10 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.OkHttpClient
@@ -151,16 +155,25 @@ class Manhastro :
         MangasPage(mangas.map { it.toSManga() }, false)
     }!!
 
-    private fun parseGenres(generos: String?): List<String> {
-        if (generos.isNullOrBlank()) return emptyList()
+    private fun parseGenres(generos: JsonElement?): List<String> {
+        generos ?: return emptyList()
+
+        if (generos is JsonArray) {
+            return generos.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+        }
+
+        val genreText = (generos as? JsonPrimitive)?.contentOrNull ?: return emptyList()
+        if (genreText.isBlank()) return emptyList()
 
         return try {
-            generos.parseAs<List<String>>()
+            genreText.parseAs<List<String>>()
         } catch (_: Exception) {
-            if (generos.contains(",")) {
-                generos.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (genreText.contains(",")) {
+                genreText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             } else {
-                listOf(generos.trim()).filter { it.isNotEmpty() }
+                listOf(genreText.trim()).filter { it.isNotEmpty() }
             }
         }
     }
