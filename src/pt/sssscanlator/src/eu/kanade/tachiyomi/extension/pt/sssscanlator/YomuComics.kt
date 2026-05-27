@@ -18,6 +18,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import java.io.IOException
 
 class YomuComics : HttpSource() {
 
@@ -115,6 +116,12 @@ class YomuComics : HttpSource() {
     // Pages
 
     override fun pageListRequest(chapter: SChapter): Request {
+        chapter.url.queryParameterLong(RELEASE_AT_QUERY)?.let { releaseAt ->
+            if (releaseAt > System.currentTimeMillis()) {
+                throw IOException(lockedChapterError(releaseAt))
+            }
+        }
+
         val chapterPageUrl = getChapterUrl(chapter)
 
         val requestHeaders = headers.newBuilder()
@@ -132,13 +139,15 @@ class YomuComics : HttpSource() {
                 (it["chapter"] as JsonObject)["imagens_lista"] is JsonArray
         }
 
-        if (data != null && data.chapter.images.isNotEmpty()) {
-            return data.chapter.images.mapIndexed { index, imageUrl ->
-                Page(index, imageUrl = imageUrl)
-            }
+        if (data?.lockedInfo != null) {
+            throw IOException(data.lockedInfo.errorMessage())
         }
 
-        throw IllegalStateException("Nenhuma pagina encontrada para este capitulo")
+        if (data != null && data.chapter.images.isNotEmpty()) {
+            return data.toPageList()
+        }
+
+        throw IOException("Nenhuma pagina encontrada para este capitulo")
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
@@ -147,7 +156,7 @@ class YomuComics : HttpSource() {
         val requestHeaders = headers.newBuilder()
             .set("Referer", "$baseUrl/")
             .build()
-        return GET(page.imageUrl!!, requestHeaders)
+        return GET(requireNotNull(page.imageUrl), requestHeaders)
     }
 
     // Filters
@@ -163,7 +172,7 @@ class YomuComics : HttpSource() {
 
     private fun parseLibraryResponse(response: Response): MangasPage {
         val result = response.parseAs<LibraryResponseDto>()
-        val mangas = (result.mangas + result.series).map { it.toSManga() }
+        val mangas = result.toMangaList()
         val hasNextPage = result.pagination.page < result.pagination.totalPages
         return MangasPage(mangas, hasNextPage)
     }
@@ -174,7 +183,8 @@ class YomuComics : HttpSource() {
         val payload = extractSeriesPayload(document, mangaSlug)
 
         val titleElement = document.selectFirst("h1")
-        val title = titleElement!!.text()
+            ?: throw IllegalStateException("Titulo da obra nao encontrado")
+        val title = titleElement.text()
         val badgeTexts = extractBadgeTexts(titleElement)
         val statusText = badgeTexts.firstOrNull(::isStatusBadge)
         val genres = badgeTexts.filterNot(::isStatusBadge)
@@ -201,6 +211,15 @@ class YomuComics : HttpSource() {
         val manga: SManga,
         val chapters: List<SChapter>,
     )
+
+    private fun String.queryParameterLong(parameter: String): Long? {
+        val query = substringAfter("?", missingDelimiterValue = "")
+            .substringBefore("#")
+        return query.split("&")
+            .firstOrNull { it.substringBefore("=") == parameter }
+            ?.substringAfter("=", missingDelimiterValue = "")
+            ?.toLongOrNull()
+    }
 
     private companion object {
         const val PAGE_SIZE = 20
