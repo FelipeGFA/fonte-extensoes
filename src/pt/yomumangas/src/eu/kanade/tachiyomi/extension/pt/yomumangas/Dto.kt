@@ -12,6 +12,8 @@ internal fun String.replaceB2Uri(): String = replace("b2://", "https://b2.yomuma
 @Serializable
 class SearchResponse(
     val mangas: List<SearchMangaDto> = emptyList(),
+    val total: Int = 0,
+    val page: Int = 1,
     val pages: Int = 1,
 )
 
@@ -20,12 +22,12 @@ class SearchMangaDto(
     private val id: Int,
     private val slug: String,
     private val title: String,
-    private val cover: String,
+    private val cover: String? = null,
 ) {
     fun toSManga() = SManga.create().apply {
         url = "$id#$slug"
         title = this@SearchMangaDto.title
-        thumbnail_url = cover.replaceB2Uri()
+        thumbnail_url = cover?.replaceB2Uri()
     }
 }
 
@@ -39,7 +41,7 @@ class MangaDto(
     private val id: Int,
     private val slug: String,
     private val title: String,
-    private val cover: String,
+    private val cover: String? = null,
     private val status: String? = null,
     private val description: String? = null,
     private val authors: List<String> = emptyList(),
@@ -50,7 +52,7 @@ class MangaDto(
     fun toSManga() = SManga.create().apply {
         url = "$id#$slug"
         title = this@MangaDto.title
-        thumbnail_url = cover.replaceB2Uri()
+        thumbnail_url = cover?.replaceB2Uri()
         author = authors.joinToString()
         artist = artists.joinToString()
         description = this@MangaDto.description

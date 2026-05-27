@@ -33,12 +33,20 @@ class StatusFilter :
         ),
     )
 
+class HentaiFilter :
+    UriPartFilter(
+        "Hentai",
+        arrayOf(
+            Pair("Ocultar", ""),
+            Pair("Mostrar", "true"),
+        ),
+    )
+
 class NsfwFilter :
     UriPartFilter(
         "NSFW",
         arrayOf(
-            Pair("Qualquer", ""),
-            Pair("Ocultar", "false"),
+            Pair("Ocultar", ""),
             Pair("Mostrar", "true"),
         ),
     )
