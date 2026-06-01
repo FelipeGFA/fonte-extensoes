@@ -1,7 +1,9 @@
 ext {
     extName = 'RF Dragon Scan'
     extClass = '.RFDragonScan'
-    extVersionCode = 11
+    themePkg = 'peachscan'
+    baseUrl = 'https://rfdragonscan.com'
+    overrideVersionCode = 0
     isNsfw = false
 }
 

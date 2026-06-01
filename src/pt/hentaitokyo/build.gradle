@@ -3,7 +3,7 @@ ext {
     extClass = '.HentaiTokyo'
     themePkg = 'gattsu'
     baseUrl = 'https://hentaitokyo.net'
-    overrideVersionCode = 1
+    overrideVersionCode = 0
     isNsfw = true
 }
 

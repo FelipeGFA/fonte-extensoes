@@ -34,16 +34,9 @@ class YomuMangas : HttpSource() {
     }
 
     // ============================== Popular ==============================
-    override fun popularMangaRequest(page: Int): Request {
-        val url = "$apiUrl/mangas".toHttpUrl().newBuilder()
-            .addQueryParameter("query", "")
-            .addQueryParameter("page", page.toString())
-            .build()
+    override fun popularMangaRequest(page: Int): Request = latestUpdatesRequest(page)
 
-        return GET(url, headers)
-    }
-
-    override fun popularMangaParse(response: Response): MangasPage = searchMangaParse(response)
+    override fun popularMangaParse(response: Response): MangasPage = latestUpdatesParse(response)
 
     // ============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl, headers)
@@ -70,14 +63,16 @@ class YomuMangas : HttpSource() {
     // ============================== Search ===============================
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$apiUrl/mangas".toHttpUrl().newBuilder()
-            .addQueryParameter("query", query)
             .addQueryParameter("page", page.toString())
+
+        if (query.isNotEmpty()) {
+            url.addQueryParameter("query", query)
+        }
 
         filters.forEach { filter ->
             when (filter) {
                 is TypeFilter -> if (filter.toUriPart().isNotEmpty()) url.addQueryParameter("type", filter.toUriPart())
                 is StatusFilter -> if (filter.toUriPart().isNotEmpty()) url.addQueryParameter("status", filter.toUriPart())
-                is HentaiFilter -> if (filter.toUriPart().isNotEmpty()) url.addQueryParameter("hentai", filter.toUriPart())
                 is NsfwFilter -> if (filter.toUriPart().isNotEmpty()) url.addQueryParameter("nsfw", filter.toUriPart())
                 is GenreFilter -> {
                     val selected = filter.state.filter { it.state }.map { it.id }
@@ -99,9 +94,10 @@ class YomuMangas : HttpSource() {
 
     override fun searchMangaParse(response: Response): MangasPage {
         val dto = response.parseAs<SearchResponse>()
+        val page = response.request.url.queryParameter("page")?.toIntOrNull() ?: 1
         return MangasPage(
             dto.mangas.map { it.toSManga() },
-            dto.page < dto.pages,
+            page < dto.pages,
         )
     }
 
@@ -152,7 +148,6 @@ class YomuMangas : HttpSource() {
     override fun getFilterList() = FilterList(
         TypeFilter(),
         StatusFilter(),
-        HentaiFilter(),
         NsfwFilter(),
         Filter.Separator(),
         GenreFilter(getGenresList()),

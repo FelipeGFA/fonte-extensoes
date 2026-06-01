@@ -3,7 +3,7 @@ ext {
     extClass = '.Vegitoons'
     baseUrl = 'https://vegitoons.black'
     themePkg = 'greenshit'
-    overrideVersionCode = 2
+    overrideVersionCode = 0
     isNsfw = true
 }
 

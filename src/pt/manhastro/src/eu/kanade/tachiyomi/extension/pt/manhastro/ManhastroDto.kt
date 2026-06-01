@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.extension.pt.manhastro
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class ApiResponse<T>(
@@ -18,14 +17,13 @@ data class MangaDto(
     private val descricao: String? = null,
     @SerialName("descricao_brasil") private val descricaoBrasil: String? = null,
     private val imagem: String? = null,
-    private val capa: String? = null,
-    val generos: JsonElement? = null,
+    val generos: List<String> = emptyList(),
     @SerialName("views_mes") private val viewsMes: String? = null,
     @SerialName("qnt_capitulo") val qntCapitulo: Int? = null,
 ) {
     val displayTitle: String get() = tituloBrasil?.takeIf { it.isNotBlank() } ?: titulo
     val displayDescription: String? get() = descricaoBrasil?.takeIf { it.isNotBlank() } ?: descricao
-    val thumbnailUrl: String? get() = (imagem?.takeIf { it.isNotBlank() } ?: capa)?.let {
+    val thumbnailUrl: String? get() = imagem?.let {
         if (it.startsWith("http")) it else "https://$it"
     }
     val popularity: Int get() = viewsMes?.toIntOrNull() ?: 0

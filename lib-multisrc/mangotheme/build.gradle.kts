@@ -4,7 +4,7 @@ plugins {
     alias(kei.plugins.multisrc)
 }
 
-baseVersionCode = 2
+baseVersionCode = 1
 
 dependencies {
     api(project(":lib:cookieinterceptor"))

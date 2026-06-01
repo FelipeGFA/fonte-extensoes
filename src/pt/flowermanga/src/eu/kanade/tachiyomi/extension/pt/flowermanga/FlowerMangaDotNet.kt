@@ -22,6 +22,4 @@ class FlowerMangaDotNet :
 
     override val useLoadMoreRequest = LoadMoreStrategy.Never
     override val useNewChapterEndpoint = false
-
-    override fun searchMangaSelector() = "div.page-item-detail.manga, .manga__item"
 }
