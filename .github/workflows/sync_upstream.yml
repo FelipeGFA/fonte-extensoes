@@ -77,28 +77,45 @@ jobs:
           set -eu
 
           preserve_paths="$(mktemp)"
+          base="$(git merge-base HEAD origin/sync || true)"
+
           if git cat-file -e HEAD:.github 2>/dev/null; then
             printf '.github\0' >> "$preserve_paths"
           fi
 
-          git ls-tree -rz -r --name-only HEAD -- src |
+          git ls-tree -rz -r --name-only HEAD |
             while IFS= read -r -d '' path; do
               case "$path" in
-                src/*/*/*)
-                  extension_path="${path#src/}"
-                  language="${extension_path%%/*}"
-                  source_path="${extension_path#*/}"
-                  source="${source_path%%/*}"
-                  printf 'src/%s/%s\0' "$language" "$source"
-                  ;;
+                .github|.github/*) continue ;;
               esac
-            done |
-            sort -zu |
-            while IFS= read -r -d '' path; do
-              if ! git cat-file -e "origin/sync:$path" 2>/dev/null; then
-                printf '%s\0' "$path"
+
+              dir="${path%/*}"
+              if [ "$dir" = "$path" ]; then
+                continue
               fi
-            done >> "$preserve_paths"
+
+              IFS='/' read -r -a parts <<< "$dir"
+              candidate=""
+              for part in "${parts[@]}"; do
+                if [ -z "$candidate" ]; then
+                  candidate="$part"
+                else
+                  candidate="$candidate/$part"
+                fi
+
+                if git cat-file -e "origin/sync:$candidate" 2>/dev/null; then
+                  continue
+                fi
+
+                if [ -n "$base" ] && git cat-file -e "$base:$candidate" 2>/dev/null; then
+                  break
+                fi
+
+                printf '%s\0' "$candidate"
+                break
+              done
+            done |
+            sort -zu >> "$preserve_paths"
 
           git merge --no-ff --no-commit -s ours origin/sync
           git read-tree --reset -u origin/sync
