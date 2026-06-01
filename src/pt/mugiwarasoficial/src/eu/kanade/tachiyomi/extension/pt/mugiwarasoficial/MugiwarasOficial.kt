@@ -28,7 +28,7 @@ class MugiwarasOficial :
 
     override fun pageListParse(document: Document): List<Page> {
         val redirectUrl = document.selectFirst("div.page-break a")!!.absUrl("href")
-        val pageUrl = redirectUrl.toHttpUrl().queryParameter("t")!!.toHttpUrl().toUrl()
+        val pageUrl = redirectUrl.toHttpUrl().queryParameter("a")!!.toHttpUrl().toUrl()
 
         val url = "$baseUrl/campanha.php".toHttpUrl().newBuilder()
             .addQueryParameter("auth", pageUrl.toString())
