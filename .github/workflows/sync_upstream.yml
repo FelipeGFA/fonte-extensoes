@@ -63,9 +63,9 @@ jobs:
       - name: Check for changes
         id: check
         run: |
-          if git diff --quiet HEAD origin/sync -- ':!.github'; then
+          if git merge-base --is-ancestor origin/sync HEAD; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No changes to sync (excluding .github)"
+            echo "No upstream changes to sync"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "Changes detected, applying upstream tree"
@@ -76,21 +76,44 @@ jobs:
         run: |
           set -eu
 
-          git merge --no-ff --no-commit -s ours origin/sync
-          git read-tree --reset -u origin/sync
-          git restore --source=HEAD --staged --worktree .github
-
-          if ! git diff --cached --quiet || test -f .git/MERGE_HEAD; then
-            git commit \
-              -m "Sync upstream" \
-          Confidence: high
-          Scope-risk: broad
-          Directive: Preserve origin/sync for every non-.github path, including conflicts and fork-side edits
-          Tested: Tree replacement completed in workflow run
-          Not-tested: Live GitHub Actions run"
+          preserve_paths="$(mktemp)"
+          if git cat-file -e HEAD:.github 2>/dev/null; then
+            printf '.github\0' >> "$preserve_paths"
           fi
 
-          echo "Sync completed. Upstream tree applied and local .github folder preserved."
+          git ls-tree -rz -r --name-only HEAD -- src |
+            while IFS= read -r -d '' path; do
+              case "$path" in
+                src/*/*/*)
+                  extension_path="${path#src/}"
+                  language="${extension_path%%/*}"
+                  source_path="${extension_path#*/}"
+                  source="${source_path%%/*}"
+                  printf 'src/%s/%s\0' "$language" "$source"
+                  ;;
+              esac
+            done |
+            sort -zu |
+            while IFS= read -r -d '' path; do
+              if ! git cat-file -e "origin/sync:$path" 2>/dev/null; then
+                printf '%s\0' "$path"
+              fi
+            done >> "$preserve_paths"
+
+          git merge --no-ff --no-commit -s ours origin/sync
+          git read-tree --reset -u origin/sync
+
+          if [ -s "$preserve_paths" ]; then
+            git restore --source=HEAD --staged --worktree \
+              --pathspec-from-file="$preserve_paths" \
+              --pathspec-file-nul
+          fi
+
+          if ! git diff --cached --quiet || test -f .git/MERGE_HEAD; then
+            git commit -m "Sync upstream"
+          fi
+
+          echo "Synced"
 
       - name: Push changes
         if: steps.check.outputs.has_changes == 'true'
