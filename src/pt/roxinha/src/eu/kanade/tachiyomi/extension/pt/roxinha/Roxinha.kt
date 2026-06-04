@@ -21,6 +21,10 @@ class Roxinha : HttpSource() {
     override val supportsLatest = true
 
     private val apiUrl = "$baseUrl/api"
+    private val accessCache = mutableMapOf<String, ChapterAccessTicket>()
+    private val accessCacheLock = Any()
+    private val accessExpirySafetyWindowMs = 10_000L
+    private val accessDefaultExpiresInMs = 600_000L
 
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
@@ -31,10 +35,10 @@ class Roxinha : HttpSource() {
         return GET("$apiUrl/manga/search/advanced?sort=views&order=DESC&limit=24&offset=$offset", headers)
     }
 
-    override fun popularMangaParse(response: Response): MangasPage {
-        val dto = response.parseAs<SearchResponseDto>()
+    override fun popularMangaParse(response: Response): MangasPage = response.use {
+        val dto = it.parseAs<SearchResponseDto>()
         val (mangas, hasMore) = dto.toMangasPage(baseUrl)
-        return MangasPage(mangas, hasMore)
+        MangasPage(mangas, hasMore)
     }
 
     override fun latestUpdatesRequest(page: Int): Request {
@@ -88,25 +92,42 @@ class Roxinha : HttpSource() {
 
     override fun mangaDetailsRequest(manga: SManga): Request = GET("$apiUrl/manga/${manga.url}", headers)
 
-    override fun mangaDetailsParse(response: Response): SManga {
-        val dto = response.parseAs<MangaDto>()
-        return dto.toSManga(baseUrl)
-    }
+    override fun mangaDetailsParse(response: Response): SManga = response.use { it.parseAs<MangaDto>().toSManga(baseUrl) }
 
     override fun chapterListRequest(manga: SManga): Request = mangaDetailsRequest(manga)
 
-    override fun chapterListParse(response: Response): List<SChapter> {
-        val dto = response.parseAs<MangaDto>()
-        return dto.toSChapters()
-    }
+    override fun chapterListParse(response: Response): List<SChapter> = response.use { it.parseAs<MangaDto>().toSChapters() }
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl/manga/chapter/${chapter.url}"
 
-    override fun pageListRequest(chapter: SChapter): Request = GET("$apiUrl/manga/chapter/${chapter.url}", headers)
+    override fun pageListRequest(chapter: SChapter): Request {
+        val accessTicket = getChapterAccessTicket(chapter.url)
+        val accessHeaders = headers.newBuilder()
+            .add("X-Chapter-Access", accessTicket.ticket)
+            .build()
+        return GET("$apiUrl/manga/chapter/${chapter.url}", accessHeaders)
+    }
 
-    override fun pageListParse(response: Response): List<Page> {
-        val dto = response.parseAs<ChapterDetailsDto>()
-        return dto.toPages(baseUrl)
+    override fun pageListParse(response: Response): List<Page> = response.use { it.parseAs<ChapterDetailsDto>().toPages(baseUrl) }
+
+    private fun getChapterAccessTicket(chapterId: String): ChapterAccessTicket {
+        val now = System.currentTimeMillis()
+        synchronized(accessCacheLock) {
+            val cached = accessCache[chapterId]
+            if (cached != null && cached.expiresAt > now + accessExpirySafetyWindowMs) {
+                return cached
+            }
+        }
+
+        val url = "$apiUrl/manga/chapter/$chapterId/access"
+        val accessTicket = client.newCall(GET(url, headers)).execute().use { response ->
+            response.parseAs<ChapterAccessDto>().toAccessTicket(now, accessDefaultExpiresInMs)
+        }
+
+        synchronized(accessCacheLock) {
+            accessCache[chapterId] = accessTicket
+        }
+        return accessTicket
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()

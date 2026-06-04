@@ -73,3 +73,20 @@ class ChapterDetailsDto(
         Page(index, imageUrl = baseUrl + url)
     }
 }
+
+class ChapterAccessTicket(
+    val ticket: String,
+    val expiresAt: Long,
+)
+
+@Serializable
+class ChapterAccessDto(
+    private val ticket: String,
+    private val expiresAt: Long? = null,
+    private val expiresIn: Long? = null,
+) {
+    fun toAccessTicket(now: Long, defaultExpiresInMs: Long): ChapterAccessTicket {
+        val expiry = expiresAt ?: now + (expiresIn ?: defaultExpiresInMs)
+        return ChapterAccessTicket(ticket, expiry)
+    }
+}
