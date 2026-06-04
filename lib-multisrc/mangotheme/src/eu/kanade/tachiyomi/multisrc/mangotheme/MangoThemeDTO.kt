@@ -153,8 +153,8 @@ class MangoThemePageChapterDto(
 
 @Serializable
 class MangoThemePageDto(
-    @JsonNames("numero")
-    val number: Int,
+    @JsonNames("numero", "number")
+    val number: Int? = null,
     @JsonNames("cdn_id", "imagem", "image", "src", "link", "path", "arquivo")
     val url: String? = null,
 )

@@ -185,7 +185,7 @@ class Bakai : HttpSource() {
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
 
-        return document.select("div.ipsGrid.ipsGrid_collapsePhone img").mapIndexed { i, img ->
+        return document.select("div.ipsGrid.ipsGrid_collapsePhone img, img.ipsImage.imgMargin").mapIndexed { i, img ->
             val url = img.attr("abs:data-src").ifEmpty { img.attr("abs:src") }
             Page(i, imageUrl = url)
         }

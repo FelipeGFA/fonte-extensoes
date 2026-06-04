@@ -68,67 +68,56 @@ jobs:
             echo "No upstream changes to sync"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected, applying upstream tree"
+            echo "Changes detected, applying upstream changes selectively"
           fi
 
-      - name: Apply upstream tree (preserving .github)
+      - name: Apply upstream changes selectively (preserving .github)
         if: steps.check.outputs.has_changes == 'true'
         run: |
-          set -eu
+          set -euo pipefail
 
-          preserve_paths="$(mktemp)"
-          base="$(git merge-base HEAD origin/sync || true)"
+          base="$(git merge-base HEAD origin/sync)"
+          changed_paths="$(mktemp)"
+          apply_paths="$(mktemp)"
+          trap 'rm -f "$changed_paths" "$apply_paths"' EXIT
 
-          if git cat-file -e HEAD:.github 2>/dev/null; then
-            printf '.github\0' >> "$preserve_paths"
-          fi
+          git diff -z --name-only "$base" origin/sync -- . \
+            ':(exclude).github' \
+            ':(exclude).github/**' > "$changed_paths"
 
-          git ls-tree -rz -r --name-only HEAD |
+          if [ ! -s "$changed_paths" ]; then
+            echo "Only preserved paths changed upstream; recording merge"
+          else
             while IFS= read -r -d '' path; do
               case "$path" in
                 .github|.github/*) continue ;;
+                src/*/*)
+                  IFS=/ read -r first second third rest <<< "$path"
+                  printf '%s/%s/%s\0' "$first" "$second" "$third"
+                  ;;
+                *)
+                  printf '%s\0' "$path"
+                  ;;
               esac
-
-              dir="${path%/*}"
-              if [ "$dir" = "$path" ]; then
-                continue
-              fi
-
-              IFS='/' read -r -a parts <<< "$dir"
-              candidate=""
-              for part in "${parts[@]}"; do
-                if [ -z "$candidate" ]; then
-                  candidate="$part"
-                else
-                  candidate="$candidate/$part"
-                fi
-
-                if git cat-file -e "origin/sync:$candidate" 2>/dev/null; then
-                  continue
-                fi
-
-                if [ -n "$base" ] && git cat-file -e "$base:$candidate" 2>/dev/null; then
-                  break
-                fi
-
-                printf '%s\0' "$candidate"
-                break
-              done
-            done |
-            sort -zu >> "$preserve_paths"
+            done < "$changed_paths" | sort -zu > "$apply_paths"
+          fi
 
           git merge --no-ff --no-commit -s ours origin/sync
-          git read-tree --reset -u origin/sync
 
-          if [ -s "$preserve_paths" ]; then
-            git restore --source=HEAD --staged --worktree \
-              --pathspec-from-file="$preserve_paths" \
-              --pathspec-file-nul
+          if [ -s "$apply_paths" ]; then
+            echo "Applying upstream paths:"
+            tr '\0' '\n' < "$apply_paths"
+
+            while IFS= read -r -d '' path; do
+              git rm -r --ignore-unmatch --quiet -- "$path"
+
+              if git cat-file -e "origin/sync:$path" 2>/dev/null; then
+                git restore --source=origin/sync --staged --worktree -- "$path"
+              fi
+            done < "$apply_paths"
           fi
 
-          if ! git diff --cached --quiet || test -f .git/MERGE_HEAD; then
-            git commit -m "Sync upstream"
-          fi
+          git commit -m "Sync upstream"
 
           echo "Synced"
 

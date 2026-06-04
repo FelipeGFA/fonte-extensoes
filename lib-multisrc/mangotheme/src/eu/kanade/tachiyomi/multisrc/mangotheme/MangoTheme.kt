@@ -250,10 +250,18 @@ abstract class MangoTheme :
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val pages = response.parseAs<MangoThemeResponse<MangoThemePageChapterDto>>()
+        val pageDtos = response.parseAs<MangoThemeResponse<MangoThemePageChapterDto>>()
             .items
             .pages
-            .sortedBy { it.number }
+
+        val pages = pageDtos
+            .let { pages ->
+                if (pages.any { it.number != null }) {
+                    pages.sortedBy { it.number ?: Int.MAX_VALUE }
+                } else {
+                    pages
+                }
+            }
             .mapNotNull { page ->
                 page.url
                     ?.takeIf { it.isNotBlank() }

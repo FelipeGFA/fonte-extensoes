@@ -15,6 +15,10 @@ import keiyoushi.utils.parseAs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -63,11 +67,11 @@ class AnimeXNovel : HttpSource() {
 
     override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl)
 
-    override fun latestUpdatesParse(response: Response): MangasPage {
-        val mangas = response.asJsoup()
+    override fun latestUpdatesParse(response: Response): MangasPage = response.use {
+        val mangas = it.asJsoup()
             .select("div:contains(Últimos Mangás) + .axn-piz-container .axn-piz-card")
             .map(::mangaFromElement)
-        return MangasPage(mangas, hasNextPage = false)
+        MangasPage(mangas, hasNextPage = false)
     }
 
     // ========================== Search ====================================
@@ -98,8 +102,8 @@ class AnimeXNovel : HttpSource() {
 
     private var lastManga: SManga? = null
 
-    override fun searchMangaParse(response: Response): MangasPage {
-        val mangas = response.asJsoup().select("a.axn-card").map(::mangaFromElement).toMutableList()
+    override fun searchMangaParse(response: Response): MangasPage = response.use {
+        val mangas = it.asJsoup().select("a.axn-card").map(::mangaFromElement).toMutableList()
         val hasNextPage = mangas.isNotEmpty() && mangas.size > 1
 
         when {
@@ -111,75 +115,98 @@ class AnimeXNovel : HttpSource() {
             }
         }
 
-        return MangasPage(mangas, hasNextPage = hasNextPage)
+        MangasPage(mangas, hasNextPage = hasNextPage)
     }
 
     // ========================== Details ===================================
 
-    override fun mangaDetailsParse(response: Response) = SManga.create().apply {
-        val document = response.asJsoup()
-        title = document.selectFirst("meta[itemprop=name]")!!.attr("content")
-        thumbnail_url = document.selectFirst("meta[itemprop=image]")?.absUrl("content")
-        author = document.selectFirst("li:contains(Autor:)")?.text()?.substringAfter(":")?.trim()
-        artist = document.selectFirst("li:contains(Arte:)")?.text()?.substringAfter(":")?.trim()
-        genre = document.selectFirst("meta[itemprop=genre]")?.attr("content")
-        description = document.selectFirst("meta[itemprop=description]")?.attr("content")
-        document.selectFirst("meta[itemprop=creativeWorkStatus]")?.attr("content")?.let {
-            status = when (it.lowercase()) {
-                "ongoing" -> SManga.ONGOING
-                "completed" -> SManga.COMPLETED
-                else -> SManga.UNKNOWN
-            }
-        }
+    override fun mangaDetailsParse(response: Response) = response.use {
+        val document = it.asJsoup()
+        val structuredData = document.selectFirst("script#axn-data")
+            ?.data()
+            ?.let { json -> runCatching { json.parseAs<JsonObject>() }.getOrNull() }
+        val details = document.selectFirst(".wp-block-media-text:has(.wp-block-media-text__content)")
 
-        setUrlWithoutDomain(document.location())
+        SManga.create().apply {
+            title = document.selectFirst(".eb-breadcrumb-item.current")?.text()
+                ?: structuredData?.string("name")
+                ?: document.selectFirst("h1.entry-title")!!.text()
+            thumbnail_url = details?.selectFirst(".wp-block-media-text__media img")?.absUrl("src")
+                ?: structuredData?.string("image")?.toHttps()
+            author = details?.detailsValue("Autor")
+                ?: structuredData?.nestedString("author", "name")
+            artist = details?.detailsValue("Arte")
+                ?: structuredData?.nestedString("illustrator", "name")
+            genre = details?.detailsValue("Gênero")
+                ?: structuredData?.string("genre")
+            description = details?.select(".eb-accordion-content p")
+                ?.joinToString("\n\n") { it.text() }
+                ?.takeIf(String::isNotBlank)
+                ?: structuredData?.string("description")
+            structuredData?.string("creativeWorkStatus")?.let {
+                status = when (it.lowercase()) {
+                    "ongoing" -> SManga.ONGOING
+                    "completed" -> SManga.COMPLETED
+                    else -> SManga.UNKNOWN
+                }
+            }
+
+            setUrlWithoutDomain(document.location())
+        }
     }
 
     // ========================== Chapters ==================================
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
+        val mangaUrl = manga.url.toAbsoluteUrl()
         val document = client.newCall(mangaDetailsRequest(manga))
-            .execute().asJsoup()
+            .execute()
+            .use { it.asJsoup() }
 
-        val category = document.selectFirst(".axn-chapters-container")
+        val category = document.selectFirst(".axn-sc-wrapper[data-categoria], .axn-chapters-container[data-categoria]")
             ?.attr("data-categoria")
             ?: return@fromCallable emptyList()
 
-        val url = "$baseUrl/wp-json/wp/v2/posts".toHttpUrl().newBuilder()
-            .addQueryParameter("categories", category)
-            .addQueryParameter("orderby", "date")
-            .addQueryParameter("order", "desc")
-            .addQueryParameter("per_page", "100")
+        val url = "$baseUrl/wp-json/axn/v1/chapters/$category".toHttpUrl().newBuilder()
 
         val chapterList = mutableListOf<SChapter>()
         var page = 1
-        while (true) {
+        var totalPages: Int
+        do {
             url.setQueryParameter("page", page.toString())
-            val response = client.newCall(GET(url.build(), headers)).execute()
+            val response = client.newCall(GET(url.build(), chapterListHeaders(mangaUrl))).execute()
             if (!response.isSuccessful) {
+                response.close()
                 break
             }
+            totalPages = response.header("X-WP-TotalPages")?.toIntOrNull() ?: page
             chapterList += chapterListParse(response)
             page++
-        }
-        chapterList
+        } while (page <= totalPages)
+
+        chapterList.distinctBy { it.url }.asReversed()
     }
 
-    override fun chapterListParse(response: Response): List<SChapter> = response.parseAs<List<ChapterDto>>().map(ChapterDto::toSChapter)
-        .filter { it.url.contains("capitulo") }
+    override fun chapterListParse(response: Response): List<SChapter> = response.use {
+        it.parseAs<List<ChapterDto>>().mapNotNull { chapter -> chapter.toSChapter(baseUrl) }
+    }
 
     // ========================== Pages =====================================
 
-    private val pageContainerSelector = ".spice-block-img-gallery, .wp-block-gallery, .spnc-entry-content"
+    private val pageImageSelector = listOf(
+        ".spice-block-img-gallery img",
+        ".wp-block-gallery img",
+        ".spnc-entry-content img",
+        "figure.wp-block-image img",
+    ).joinToString()
 
-    override fun pageListParse(response: Response): List<Page> {
-        val container = response.asJsoup().selectFirst(pageContainerSelector)!!
-        return container.select("img").mapIndexed { index, element ->
+    override fun pageListParse(response: Response): List<Page> = response.use {
+        it.asJsoup().select(pageImageSelector).mapIndexed { index, element ->
             Page(index, imageUrl = element.absUrl("src"))
         }
     }
 
-    override fun imageUrlParse(response: Response): String = ""
+    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
 
     // =========================== Filters ==================================
 
@@ -248,6 +275,36 @@ class AnimeXNovel : HttpSource() {
     }
 
     // =========================== Utils ====================================
+
+    private fun chapterListHeaders(referer: String) = headersBuilder()
+        .set("Accept", "application/json,*/*")
+        .set("Referer", referer)
+        .set("Sec-Fetch-Dest", "empty")
+        .set("Sec-Fetch-Mode", "cors")
+        .set("Sec-Fetch-Site", "same-origin")
+        .build()
+
+    private fun String.toAbsoluteUrl(): String = if (startsWith("http")) this else baseUrl + this
+
+    private fun String.toHttps() = replace("http://", "https://")
+
+    private fun JsonObject.string(key: String): String? = get(key)?.jsonPrimitive?.contentOrNull
+
+    private fun JsonObject.nestedString(key: String, nestedKey: String): String? = get(key)
+        ?.jsonObject
+        ?.string(nestedKey)
+
+    private fun Element.detailsValue(label: String): String? {
+        return select(".wp-block-media-text__content > ul.wp-block-list > li").firstNotNullOfOrNull { item ->
+            val text = item.text()
+            val itemLabel = text.substringBefore(":").trim()
+            if (!itemLabel.equals(label, ignoreCase = true)) return@firstNotNullOfOrNull null
+
+            text.substringAfter(":")
+                .trim()
+                .takeIf(String::isNotBlank)
+        }
+    }
 
     private fun mangaFromElement(element: Element): SManga = SManga.create().apply {
         title = element.selectFirst("h2, h3, .search-content")!!.text()
