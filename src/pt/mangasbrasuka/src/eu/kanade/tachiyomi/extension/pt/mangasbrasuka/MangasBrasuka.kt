@@ -26,6 +26,13 @@ class MangasBrasuka :
     override val useNewChapterEndpoint = true
 
     override fun pageListParse(document: Document): List<Page> {
+        val defaultPages = document.select("div.page-break.no-gaps img.wp-manga-chapter-img")
+        if (defaultPages.isNotEmpty()) {
+            return defaultPages.mapIndexed { index, element ->
+                Page(index, imageUrl = element.absUrl("src"))
+            }
+        }
+
         val redirectUrl = document.selectFirst("div.page-break a")!!.absUrl("href")
         val pageUrl = redirectUrl.toHttpUrl().queryParameter("t")!!.toHttpUrl().toUrl()
 
@@ -33,9 +40,11 @@ class MangasBrasuka :
             .addQueryParameter("auth", pageUrl.toString())
             .build()
 
-        return client.newCall(GET(url, headers)).execute().asJsoup()
-            .select(".manga-content img").mapIndexed { index, elemet ->
-                Page(index, imageUrl = elemet.absUrl("src"))
-            }
+        return client.newCall(GET(url, headers)).execute().use { response ->
+            response.asJsoup()
+                .select(".manga-content img").mapIndexed { index, element ->
+                    Page(index, imageUrl = element.absUrl("src"))
+                }
+        }
     }
 }
