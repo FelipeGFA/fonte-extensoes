@@ -26,10 +26,11 @@ class MangasBrasuka :
     override val useNewChapterEndpoint = true
 
     override fun pageListParse(document: Document): List<Page> {
-        val defaultPages = document.select("div.page-break.no-gaps img.wp-manga-chapter-img")
+        val defaultPages = document.select("div.page-break img.wp-manga-chapter-img")
         if (defaultPages.isNotEmpty()) {
             return defaultPages.mapIndexed { index, element ->
-                Page(index, imageUrl = element.absUrl("src"))
+                val imageUrl = element.absUrl("src").ifEmpty { element.attr("src").trim() }
+                Page(index, imageUrl = imageUrl)
             }
         }
 
