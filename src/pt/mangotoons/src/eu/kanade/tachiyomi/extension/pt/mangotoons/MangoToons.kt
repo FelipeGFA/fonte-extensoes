@@ -10,6 +10,10 @@ class MangoToons : MangoTheme() {
 
     override val apiUrl = "https://api.mangotoons.com/api"
 
+    override fun headersBuilder() = super.headersBuilder()
+        .set("User-Agent", "-")
+        .set("sec-fetch-mode", "none")
+
     override val lang = "pt-BR"
 
     override val encryptionKey = "abmPisXlFjOLVTnYhbYQTpkWJtOGKwVttzLqstfjRBNVaEtQYG"

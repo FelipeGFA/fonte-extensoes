@@ -1,11 +1,11 @@
 package eu.kanade.tachiyomi.extension.pt.rfdragonscan
 
 import android.content.SharedPreferences
-import android.text.InputType
 import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -13,248 +13,387 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import keiyoushi.utils.extractNextJs
-import keiyoushi.utils.firstInstanceOrNull
+import keiyoushi.utils.extractNextJsRsc
 import keiyoushi.utils.getPreferencesLazy
-import keiyoushi.utils.toJsonRequestBody
+import kotlinx.serialization.json.JsonObject
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 class RFDragonScan :
     HttpSource(),
     ConfigurableSource {
 
-    override val name: String = "RF Dragon Scan"
+    override val name = "RF Dragon Scan"
 
-    override val baseUrl: String = "https://rfdragonscan.net"
+    override val baseUrl = "https://rfdragonscan.net"
 
-    override val lang: String = "pt-BR"
+    override val lang = "pt-BR"
 
-    override val supportsLatest: Boolean = true
-
-    override val versionId: Int = 2
+    override val supportsLatest = false
 
     private val preferences: SharedPreferences by getPreferencesLazy()
 
-    override fun headersBuilder(): Headers.Builder = super.headersBuilder()
-        .set("Referer", "$baseUrl/")
+    override val client = network.client.newBuilder()
+        .rateLimit(2)
+        .addInterceptor(::loginInterceptor)
+        .addInterceptor(::migrationInterceptor)
+        .build()
 
-    override fun getMangaUrl(manga: SManga): String = "$baseUrl${manga.url}"
-
-    override fun getChapterUrl(chapter: SChapter): String = chapter.publicUrl()
-
-    // ============================== Popular ===============================
-
-    override fun popularMangaRequest(page: Int): Request {
-        val headers = actionHeaders(POPULAR_TOKEN, "$baseUrl/")
-        val payload = listOf("all_time").toJsonRequestBody()
-        return POST(baseUrl, headers, payload)
+    private val apiHeaders by lazy {
+        headersBuilder().add("Rsc", "1").build()
     }
 
-    override fun popularMangaParse(response: Response): MangasPage = response.use {
-        val mangas = it.extractNextJs<List<MangaDto>>()
-            .orEmpty()
-            .mapNotNull(MangaDto::toSManga)
-        MangasPage(mangas, false)
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
     }
 
-    // =============================== Latest ===============================
+    // ============================== Popular ==============================
 
-    override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl, headers)
+    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/projetos?page=$page", apiHeaders)
 
-    override fun latestUpdatesParse(response: Response): MangasPage = response.use {
-        requireNotNull(it.extractNextJs<LatestDto> { element -> element.isLatestPayload() }) {
-            "Nao foi possivel extrair os ultimos lancamentos"
-        }.toMangasPage()
+    override fun popularMangaParse(response: Response): MangasPage {
+        val dto = response.body.string().extractNextJsRsc<ProjectsPageDto>()
+            ?: return MangasPage(emptyList(), false)
+
+        val mangas = dto.projects.map { it.toSManga() }
+
+        return MangasPage(mangas, dto.pagination?.hasNextPage == true)
     }
 
-    // =============================== Search ===============================
+    // ============================== Latest ===============================
+
+    override fun latestUpdatesRequest(page: Int) = throw UnsupportedOperationException()
+    override fun latestUpdatesParse(response: Response) = throw UnsupportedOperationException()
+
+    // ============================== Search ===============================
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        if (query.isBlank()) {
-            val selectedFilter = filters.firstInstanceOrNull<GenreFilter>()?.selectedFilter()
-                ?: filters.firstInstanceOrNull<StatusFilter>()?.selectedFilter()
-                ?: filters.firstInstanceOrNull<TypeFilter>()?.selectedFilter()
-            val url = "$baseUrl$PROJECTS_PATH".toHttpUrl().newBuilder().apply {
-                addQueryParameter("page", page.toString())
-                selectedFilter?.let {
-                    addQueryParameter("filter", it.filter)
-                    addQueryParameter("term", it.term)
-                }
-            }.build()
+        val url = "$baseUrl/projetos".toHttpUrl().newBuilder()
+            .addQueryParameter("page", page.toString())
 
-            return GET(url, headers)
+        if (query.isNotBlank()) {
+            url.addQueryParameter("term", query)
         }
 
-        val headers = actionHeaders(SEARCH_TOKEN, "$baseUrl/")
-        val payload = listOf(query).toJsonRequestBody()
-        return POST(baseUrl, headers, payload)
+        return GET(url.build(), apiHeaders)
     }
 
-    override fun searchMangaParse(response: Response): MangasPage = response.use {
-        if (it.request.url.encodedPath == PROJECTS_PATH) {
-            return@use requireNotNull(it.extractNextJs<ProjectsPageDto> { element -> element.isProjectsPagePayload() }) {
-                "Nao foi possivel extrair a lista de projetos"
-            }.toMangasPage()
+    override fun searchMangaParse(response: Response): MangasPage = popularMangaParse(response)
+
+    // ============================== Details ==============================
+
+    override fun getMangaUrl(manga: SManga): String {
+        if (!UUID_REGEX.matches(manga.url)) {
+            return "$baseUrl/projetos?term=${manga.url.trim('/').split('/').last()}"
         }
-
-        val mangas = it.extractNextJs<List<MangaDto>>()
-            .orEmpty()
-            .mapNotNull(MangaDto::toSManga)
-        MangasPage(mangas, false)
+        return baseUrl + manga.url
     }
-
-    override fun getFilterList(): FilterList = getFilters()
-
-    // ============================ Manga Details ============================
 
     override fun mangaDetailsRequest(manga: SManga): Request {
-        val url = getMangaUrl(manga)
-        val payload = url.toHttpUrl().pathSegments.toJsonRequestBody()
-        val headers = actionHeaders(DETAILS_TOKEN, url)
-        return POST(url, headers, payload)
+        if (!UUID_REGEX.matches(manga.url)) {
+            return GET("$baseUrl/migrate${manga.url}", apiHeaders)
+        }
+        val pathSegments = manga.url.trim('/').split('/').filter { it.isNotEmpty() }
+        val mangaId = pathSegments[0]
+        val mangaSlug = pathSegments[1]
+
+        val payload = "[\"$mangaId\",\"$mangaSlug\"]"
+        val requestBody = payload.toRequestBody("text/plain;charset=UTF-8".toMediaType())
+
+        val stateTree = """["",{"children":[["projectId","$mangaId","d"],{"children":[["linkId","$mangaSlug","d"],{"children":["__PAGE__",{},null,null]},null,null]}]},null,null,true]"""
+
+        return POST(
+            baseUrl + manga.url,
+            actionHeaders("60bd903bddc3d9d07f2b58fe32f0238afd74e492d6", baseUrl + manga.url, stateTree),
+            requestBody,
+        )
     }
 
-    override fun mangaDetailsParse(response: Response): SManga = response.use {
-        requireNotNull(it.extractNextJs<MangaDetailsDto> { element -> element.isMangaDetailsPayload() }) {
-            "Nao foi possivel extrair os detalhes da obra"
-        }.toSManga()
+    override fun mangaDetailsParse(response: Response): SManga {
+        val dto = response.body.string().extractNextJsRsc<MangaDetailsDto> {
+            it is JsonObject && "synopsis" in it && "title" in it
+        } ?: throw IOException("Manga details not found")
+
+        return dto.toSManga()
     }
 
-    // ============================== Chapters ==============================
+    // ============================= Chapters ==============================
+
+    override fun getChapterUrl(chapter: SChapter): String = baseUrl + chapter.url
 
     override fun chapterListRequest(manga: SManga): Request {
-        val url = getMangaUrl(manga)
-        val payload = url.toHttpUrl().pathSegments.toJsonRequestBody()
-        val headers = actionHeaders(CHAPTERS_TOKEN, url)
-        return POST(url, headers, payload)
+        if (!UUID_REGEX.matches(manga.url)) {
+            return GET("$baseUrl/migrate-chapters${manga.url}", apiHeaders)
+        }
+        val pathSegments = manga.url.trim('/').split('/').filter { it.isNotEmpty() }
+        val mangaId = pathSegments[0]
+        val mangaSlug = pathSegments[1]
+
+        val payload = "[\"$mangaId\",\"$mangaSlug\"]"
+        val requestBody = payload.toRequestBody("text/plain;charset=UTF-8".toMediaType())
+
+        val stateTree = """["",{"children":[["projectId","$mangaId","d"],{"children":[["linkId","$mangaSlug","d"],{"children":["__PAGE__",{},null,null]},null,null]}]},null,null,true]"""
+
+        return POST(
+            baseUrl + manga.url,
+            actionHeaders("6075c7373783e0d2488372dc7fcb9ffe1470bc41d2", baseUrl + manga.url, stateTree),
+            requestBody,
+        )
     }
 
-    override fun chapterListParse(response: Response): List<SChapter> = response.use {
-        val mangaPath = it.request.url.encodedPath
-        it.extractNextJs<ChapterGroupsDto> { element -> element.isChapterGroupsPayload() }
-            ?.toSChapterList(mangaPath)
-            .orEmpty()
-    }
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val seasonList = response.body.string().extractNextJsRsc<SeasonListDto> {
+            it is JsonObject && "groups" in it
+        } ?: throw IOException("Chapters not found")
 
-    // ================================ Pages ================================
+        val pathSegments = response.request.url.pathSegments.filter { it.isNotEmpty() }
+        val mangaId = pathSegments[pathSegments.size - 2]
+        val mangaSlug = pathSegments.last()
 
-    override fun pageListRequest(chapter: SChapter): Request {
-        val chapterUrl = "$baseUrl${chapter.url}".toHttpUrl()
-        if (chapterUrl.queryParameter(CHAPTER_ACCESS_TYPE_QUERY) == COINS_ACCESS_TYPE) {
-            throw IOException(COINS_CHAPTER_ERROR)
+        val chapters = mutableListOf<SChapter>()
+
+        seasonList.groups?.forEach { group ->
+            group.chapters?.forEach { ch ->
+                if (ch.isUpcoming == true || ch.hasRestriction == true) {
+                    return@forEach
+                }
+                chapters.add(ch.toSChapter(mangaId, mangaSlug, dateFormat))
+            }
         }
 
-        ensureLoggedIn()
-
-        val url = chapter.publicUrl()
-        val segments = chapterUrl.pathSegments
-        val payload = listOf(segments.first(), segments.last()).toJsonRequestBody()
-        val headers = actionHeaders(PAGES_TOKEN, url)
-        return POST(url, headers, payload)
+        return chapters.sortedByDescending {
+            it.name.substringAfter("Capítulo ").toFloatOrNull() ?: 0f
+        }
     }
 
-    override fun pageListParse(response: Response): List<Page> = response.use {
-        it.extractNextJs<PagesDto> { element -> element.isPagesPayload() }
-            ?.toPageList(it.request.url.toString())
-            .orEmpty()
+    // =============================== Pages ===============================
+
+    override fun pageListRequest(chapter: SChapter): Request {
+        val pathSegments = chapter.url.trim('/').split('/').filter { it.isNotEmpty() }
+        val mangaId = pathSegments[0]
+        val mangaSlug = pathSegments[1]
+        val chapterTitle = pathSegments[3]
+
+        val payload = "[\"$mangaId\",\"$chapterTitle\"]"
+        val requestBody = payload.toRequestBody("text/plain;charset=UTF-8".toMediaType())
+
+        val stateTree = """["",{"children":[["projectId","$mangaId","d"],{"children":[["linkId","$mangaSlug","d"],{"children":["capitulo",{"children":[["chapterId","$chapterTitle","d"],{"children":["__PAGE__",{},null,null]}]}]}]}]},null,null,true]"""
+
+        return POST(
+            baseUrl + chapter.url,
+            actionHeaders("605aecabcce97cec193f09ebe5fe3a9ae46e432ea2", baseUrl + chapter.url, stateTree),
+            requestBody,
+        )
     }
 
-    override fun imageRequest(page: Page): Request {
-        val imageHeaders = headersBuilder()
-            .set("Referer", page.url)
-            .build()
+    override fun pageListParse(response: Response): List<Page> {
+        val dto = response.body.string().extractNextJsRsc<PagesDto> {
+            it is JsonObject && "pages" in it
+        } ?: throw IOException("Pages not found")
 
-        return GET(requireNotNull(page.imageUrl), imageHeaders)
+        return dto.toPages()
     }
 
-    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
-    // ============================= Preferences =============================
+    // ============================== Filters ==============================
+
+    // ============================= Utilities =============================
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         EditTextPreference(screen.context).apply {
-            key = PREF_EMAIL
+            key = EMAIL_PREF
             title = "Email"
-            summary = "Necessario apenas para carregar paginas"
-            setDefaultValue("")
-        }.let(screen::addPreference)
+            summary = "Email utilizado para login no RF Dragon Scan"
+            dialogTitle = "Email"
+        }.also(screen::addPreference)
 
         EditTextPreference(screen.context).apply {
-            key = PREF_PASSWORD
+            key = PASSWORD_PREF
             title = "Senha"
-            summary = "Necessaria apenas para carregar paginas"
-            setDefaultValue("")
-            setOnBindEditTextListener {
-                it.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            }
-        }.let(screen::addPreference)
+            summary = "Senha utilizada para login no RF Dragon Scan"
+            dialogTitle = "Senha"
+        }.also(screen::addPreference)
     }
 
-    // ============================= Authentication ==========================
+    private var actionIdCache: String? = null
 
-    @Synchronized
-    private fun ensureLoggedIn() {
-        val url = baseUrl.toHttpUrl()
-        val cachedToken = client.cookieJar.loadForRequest(url)
-            .firstOrNull { it.name == ACCESS_TOKEN_COOKIE }
-            ?.value
+    private fun getActionId(): String {
+        actionIdCache?.let { return it }
 
-        if (!cachedToken.isNullOrEmpty()) return
+        val html = network.client.newCall(GET("$baseUrl/login", headers)).execute().use { it.body.string() }
 
-        val email = preferences.getString(PREF_EMAIL, "").orEmpty()
-        val password = preferences.getString(PREF_PASSWORD, "").orEmpty()
-
-        if (email.isEmpty() || password.isEmpty()) {
-            throw IOException("Login necessario para carregar paginas. Configure email e senha nas preferencias da extensao.")
+        ACTION_ID_HTML_REGEX.find(html)?.let {
+            val id = it.groupValues[1]
+            actionIdCache = id
+            return id
         }
 
-        val response = client.newCall(loginRequest(email, password)).execute()
-        response.use {
-            if (!it.isSuccessful) {
-                throw IOException("Falha no login: HTTP ${it.code}")
+        val chunkUrls = CHUNK_URL_REGEX.findAll(html)
+            .map { it.groupValues[1] }
+            .toList()
+
+        for (url in chunkUrls) {
+            try {
+                network.client.newCall(GET(baseUrl + url, headers)).execute().use { res ->
+                    val js = res.body.string()
+                    if (js.contains("\"login\"")) {
+                        val idMatch = ACTION_ID_JS_REGEX.find(js)
+                        if (idMatch != null) {
+                            val id = idMatch.groupValues[1]
+                            actionIdCache = id
+                            return id
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // Ignore and continue searching
+            }
+        }
+
+        return "600165150b15a3870c9e076c863daec8d24748e458"
+    }
+
+    private fun actionHeaders(actionId: String, referer: String, stateTree: String): Headers {
+        val encodedStateTree = java.net.URLEncoder.encode(stateTree, "UTF-8")
+        return headersBuilder()
+            .add("next-action", actionId)
+            .add("next-router-state-tree", encodedStateTree)
+            .add("Accept", "text/x-component")
+            .add("Origin", baseUrl)
+            .add("Referer", referer)
+            .build()
+    }
+
+    private fun loginInterceptor(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+
+        val cookies = client.cookieJar.loadForRequest(baseUrl.toHttpUrl())
+        val isLoggedIn = cookies.any { it.name == "access_token" && it.value.isNotEmpty() }
+
+        if (isLoggedIn) {
+            val response = chain.proceed(request)
+            if (response.code != 401 && response.code != 403) {
+                return response
+            }
+            response.close()
+        }
+
+        if (request.url.pathSegments.lastOrNull() == "login") {
+            return chain.proceed(request)
+        }
+
+        synchronized(this) {
+            val currentCookies = client.cookieJar.loadForRequest(baseUrl.toHttpUrl())
+            if (currentCookies.any { it.name == "access_token" && it.value.isNotEmpty() }) {
+                return chain.proceed(request)
             }
 
-            val hasAccessToken = it.headers("Set-Cookie")
-                .any { cookie -> cookie.startsWith("$ACCESS_TOKEN_COOKIE=") }
-            if (!hasAccessToken) {
-                throw IOException("Falha no login: cookie access_token nao recebido")
+            val email = preferences.getString(EMAIL_PREF, "") ?: ""
+            val password = preferences.getString(PASSWORD_PREF, "") ?: ""
+
+            if (email.isBlank() || password.isBlank()) {
+                throw IOException("Configure seu email e senha nas configurações da extensão para acessar capítulos restritos.")
             }
+
+            val actionId = getActionId()
+            val payload = "[\"$email\",\"$password\"]"
+            val loginBody = payload.toRequestBody("text/plain;charset=UTF-8".toMediaType())
+
+            val loginHeaders = headersBuilder()
+                .add("next-action", actionId)
+                .add(
+                    "next-router-state-tree",
+                    "%5B%22%22%2C%7B%22children%22%3A%5B%22login%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%2Ctrue%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
+                )
+                .add("Accept", "text/x-component")
+                .add("Origin", baseUrl)
+                .add("Referer", "$baseUrl/login")
+                .build()
+
+            val loginReq = POST("$baseUrl/login", loginHeaders, loginBody)
+
+            val success = network.client.newCall(loginReq).execute().use { loginRes ->
+                if (!loginRes.isSuccessful) {
+                    throw IOException("Falha no login. Verifique suas credenciais.")
+                }
+                client.cookieJar.loadForRequest(baseUrl.toHttpUrl()).any { it.name == "access_token" && it.value.isNotEmpty() }
+            }
+
+            if (!success) {
+                throw IOException("Falha no login. Token de acesso não recebido.")
+            }
+
+            return chain.proceed(request)
         }
     }
 
-    private fun loginRequest(email: String, password: String): Request {
-        val url = "$baseUrl/login"
-        val headers = actionHeaders(LOGIN_TOKEN, url)
-        val payload = listOf(email, password).toJsonRequestBody()
-        return POST(url, headers, payload)
-    }
+    private fun migrationInterceptor(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val firstSegment = request.url.pathSegments.firstOrNull()
 
-    private fun actionHeaders(action: String, referer: String): Headers = headersBuilder()
-        .set("Accept", "text/x-component")
-        .set("Referer", referer)
-        .set("Origin", baseUrl)
-        .set("Next-Action", action)
-        .build()
+        if (firstSegment == "migrate" || firstSegment == "migrate-chapters") {
+            val oldPath = request.url.encodedPath
+                .removePrefix("/migrate-chapters")
+                .removePrefix("/migrate")
+            val slug = oldPath.trim('/').split('/').last { it.isNotEmpty() }
 
-    private fun SChapter.publicUrl(): String {
-        val url = "$baseUrl${this.url}".toHttpUrl()
-        return "$baseUrl${url.encodedPath}"
+            val searchUrl = "$baseUrl/projetos?term=$slug".toHttpUrl()
+            val searchReq = GET(searchUrl, apiHeaders)
+            val searchRes = chain.proceed(searchReq)
+
+            val newUrlPath = searchRes.use { res ->
+                val dto = res.body.string().extractNextJsRsc<ProjectsPageDto>()
+                val project = dto?.projects?.firstOrNull { it.link == slug || it.title.contains(slug, ignoreCase = true) }
+                    ?: throw IOException("Manga not found during migration")
+
+                "/${project.id}/${project.link}"
+            }
+
+            val pathSegments = newUrlPath.trim('/').split('/')
+            val mangaId = pathSegments[0]
+            val mangaSlug = pathSegments[1]
+
+            val actionId = if (firstSegment == "migrate") {
+                "60bd903bddc3d9d07f2b58fe32f0238afd74e492d6"
+            } else {
+                "6075c7373783e0d2488372dc7fcb9ffe1470bc41d2"
+            }
+
+            val payload = "[\"$mangaId\",\"$mangaSlug\"]"
+            val requestBody = payload.toRequestBody("text/plain;charset=UTF-8".toMediaType())
+
+            val stateTree = """["",{"children":[["projectId","$mangaId","d"],{"children":[["linkId","$mangaSlug","d"],{"children":["__PAGE__",{},null,null]},null,null]}]},null,null,true]"""
+
+            val actionRequest = POST(
+                "$baseUrl$newUrlPath",
+                actionHeaders(actionId, "$baseUrl$newUrlPath", stateTree),
+                requestBody,
+            )
+
+            return chain.proceed(actionRequest)
+        }
+
+        return chain.proceed(request)
     }
 
     companion object {
-        private const val POPULAR_TOKEN = "40ec119c02c83bcccc135a8aacb1097a8d87cb2879"
-        private const val SEARCH_TOKEN = "406369e6483a4fe640a38cebf46ca5ea2385392f8d"
-        private const val DETAILS_TOKEN = "60bd903bddc3d9d07f2b58fe32f0238afd74e492d6"
-        private const val CHAPTERS_TOKEN = "6075c7373783e0d2488372dc7fcb9ffe1470bc41d2"
-        private const val PAGES_TOKEN = "605aecabcce97cec193f09ebe5fe3a9ae46e432ea2"
-        private const val LOGIN_TOKEN = "600165150b15a3870c9e076c863daec8d24748e458"
-        private const val ACCESS_TOKEN_COOKIE = "access_token"
-        private const val PREF_EMAIL = "email"
-        private const val PREF_PASSWORD = "password"
-        private const val PROJECTS_PATH = "/projetos"
+        private const val EMAIL_PREF = "pref_email"
+        private const val PASSWORD_PREF = "pref_password"
+
+        private val UUID_REGEX = Regex("^/[0-9a-fA-F\\-]{36}/.*")
+
+        private val ACTION_ID_HTML_REGEX = Regex("""name="\x24ACTION_ID_([a-f0-9]{40})"""")
+        private val CHUNK_URL_REGEX = Regex("""src="(/_next/static/chunks/[^"]+\.js)"""")
+        private val ACTION_ID_JS_REGEX = Regex("""createServerReference\("([a-f0-9]{40})",.*?,"login"\)""")
     }
 }
