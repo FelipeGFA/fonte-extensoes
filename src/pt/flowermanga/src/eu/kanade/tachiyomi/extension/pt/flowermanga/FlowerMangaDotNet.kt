@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.extension.pt.flowermanga
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
-import eu.kanade.tachiyomi.network.interceptor.rateLimit
+import keiyoushi.network.rateLimit
 import okhttp3.OkHttpClient
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -22,6 +22,4 @@ class FlowerMangaDotNet :
 
     override val useLoadMoreRequest = LoadMoreStrategy.Never
     override val useNewChapterEndpoint = false
-
-    override fun searchMangaSelector() = "div.page-item-detail.manga, .manga__item"
 }

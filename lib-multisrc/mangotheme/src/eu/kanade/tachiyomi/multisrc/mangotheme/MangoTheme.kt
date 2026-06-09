@@ -8,7 +8,6 @@ import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -18,6 +17,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import keiyoushi.lib.cookieinterceptor.CookieInterceptor
+import keiyoushi.network.rateLimit
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonString
@@ -250,18 +250,10 @@ abstract class MangoTheme :
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val pageDtos = response.parseAs<MangoThemeResponse<MangoThemePageChapterDto>>()
+        val pages = response.parseAs<MangoThemeResponse<MangoThemePageChapterDto>>()
             .items
             .pages
-
-        val pages = pageDtos
-            .let { pages ->
-                if (pages.any { it.number != null }) {
-                    pages.sortedBy { it.number ?: Int.MAX_VALUE }
-                } else {
-                    pages
-                }
-            }
+            .sortedBy { it.number }
             .mapNotNull { page ->
                 page.url
                     ?.takeIf { it.isNotBlank() }

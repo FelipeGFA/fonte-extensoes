@@ -2,11 +2,11 @@ package eu.kanade.tachiyomi.extension.pt.huntersscans
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
 import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.network.rateLimit
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Response
@@ -26,7 +26,6 @@ class HuntersScans :
         SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR")),
     ) {
     override val client = super.client.newBuilder()
-        .rateLimit(2)
         .readTimeout(1, TimeUnit.MINUTES)
         .addInterceptor { chain ->
             val response = chain.proceed(chain.request())
@@ -37,13 +36,12 @@ class HuntersScans :
             response
         }
         .addInterceptor(::imageInterceptor)
+        .rateLimit(2)
         .build()
 
     override val mangaSubString = "comics"
 
     override val useLoadMoreRequest = LoadMoreStrategy.Always
-
-    override val pageListParseSelector = ".reading-content img"
 
     override val mangaDetailsSelectorStatus = "div.summary-heading:contains(Status) + div"
 
@@ -74,10 +72,10 @@ class HuntersScans :
         val payload = PAYLOAD_REGEX.find(script)?.groupValues?.get(1)
         val sk = SK_REGEX.find(script)?.groupValues?.get(1)
 
-        if (!payload.isNullOrEmpty() && !sk.isNullOrEmpty()) {
+        if (payload != null && sk != null) {
             try {
                 val urls = HuntersScanDescrambler.decryptHuntersPayload(payload, sk)
-                return urls.mapIndexed { index, url -> Page(index, document.location(), imageUrl = url) }
+                return urls.mapIndexed { index, url -> Page(index, document.location(), url) }
             } catch (e: Exception) {
             }
         }

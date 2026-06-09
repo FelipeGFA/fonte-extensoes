@@ -2,13 +2,14 @@ package eu.kanade.tachiyomi.extension.pt.mugiwarasoficial
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.network.rateLimit
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.nodes.Document
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlin.time.Duration.Companion.seconds
 
 class MugiwarasOficial :
     Madara(
@@ -19,7 +20,7 @@ class MugiwarasOficial :
     ) {
 
     override val client = super.client.newBuilder()
-        .rateLimit(3, 1)
+        .rateLimit(3, 1.seconds)
         .build()
 
     override val useNewChapterEndpoint = true
@@ -28,7 +29,7 @@ class MugiwarasOficial :
 
     override fun pageListParse(document: Document): List<Page> {
         val redirectUrl = document.selectFirst("div.page-break a")!!.absUrl("href")
-        val pageUrl = redirectUrl.toHttpUrl().queryParameter("a")!!.toHttpUrl().toUrl()
+        val pageUrl = redirectUrl.toHttpUrl().queryParameter("t")!!.toHttpUrl().toUrl()
 
         val url = "$baseUrl/campanha.php".toHttpUrl().newBuilder()
             .addQueryParameter("auth", pageUrl.toString())

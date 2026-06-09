@@ -1,8 +1,12 @@
 ext {
     extName = 'KuroMangas'
     extClass = '.KuroMangas'
-    extVersionCode = 6
+    extVersionCode = 5
     isNsfw = false
 }
 
 apply plugin: "kei.plugins.extension.legacy"
+
+dependencies {
+    implementation(project(':lib:cookieinterceptor'))
+}
