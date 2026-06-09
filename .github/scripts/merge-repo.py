@@ -41,13 +41,32 @@ with LOCAL_REPO.joinpath("index.min.json").open() as local_index_file:
     local_index = json.load(local_index_file)
 
 remote_modules = {pkg_to_module(item["pkg"]) for item in remote_index}
+remote_by_pkg = {item["pkg"]: item for item in remote_index}
+
+skipped_downgrades = set()
+filtered_local_index = []
+
+for item in local_index:
+    remote_item = remote_by_pkg.get(item["pkg"])
+    if remote_item is not None and item["code"] < remote_item["code"]:
+        module = pkg_to_module(item["pkg"])
+        skipped_downgrades.add(module)
+        print(
+            "Skipping downgrade for "
+            f"{module}: local code {item['code']} < remote code {remote_item['code']}"
+        )
+        continue
+
+    filtered_local_index.append(item)
+
+local_index = filtered_local_index
 
 # Extensions that still exist in repo branch but no longer exist in source tree
 stale_modules = remote_modules - existing_modules
 if stale_modules:
     print(f"Removing stale modules not found in source tree: {sorted(stale_modules)}")
 
-to_delete = list(set(to_delete) | stale_modules)
+to_delete = list((set(to_delete) | stale_modules) - skipped_downgrades)
 
 # Delete old files
 for module in to_delete:
@@ -63,13 +82,19 @@ for module in to_delete:
 # Copy APKs
 remote_apk_dir = REMOTE_REPO.joinpath("apk")
 remote_apk_dir.mkdir(exist_ok=True)
+local_apks = {item["apk"] for item in local_index}
 for file in LOCAL_REPO.joinpath("apk").glob("*"):
+    if file.name not in local_apks:
+        continue
     shutil.copy2(file, remote_apk_dir / file.name)
 
 # Copy Icons
 remote_icon_dir = REMOTE_REPO.joinpath("icon")
 remote_icon_dir.mkdir(exist_ok=True)
+local_icons = {f"{item['pkg']}.png" for item in local_index}
 for file in LOCAL_REPO.joinpath("icon").glob("*"):
+    if file.name not in local_icons:
+        continue
     shutil.copy2(file, remote_icon_dir / file.name)
 
 
