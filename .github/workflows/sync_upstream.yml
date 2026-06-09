@@ -6,39 +6,8 @@ on:
 permissions: {}
 
 jobs:
-  sync-branch:
-    name: Sync branch with upstream
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout sync branch
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: sync
-          fetch-depth: 0
-          token: ${{ secrets.BOT_PAT }}
-          persist-credentials: true
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Fetch upstream
-        run: |
-          git remote add upstream https://github.com/keiyoushi/extensions-source.git || true
-          git fetch upstream main
-
-      - name: Reset sync to upstream/main
-        run: |
-          git reset --hard upstream/main
-          git push origin sync --force
-
-  merge-main:
-    name: Merge upstream into main
-    needs: sync-branch
+  sync:
+    name: Sync upstream
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -57,70 +26,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch sync branch
-        run: git fetch origin sync
-
-      - name: Check for changes
-        id: check
-        run: |
-          if git merge-base --is-ancestor origin/sync HEAD; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No upstream changes to sync"
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected, applying upstream changes selectively"
-          fi
-
-      - name: Apply upstream changes selectively (preserving .github)
-        if: steps.check.outputs.has_changes == 'true'
-        run: |
-          set -euo pipefail
-
-          base="$(git merge-base HEAD origin/sync)"
-          changed_paths="$(mktemp)"
-          apply_paths="$(mktemp)"
-          trap 'rm -f "$changed_paths" "$apply_paths"' EXIT
-
-          git diff -z --name-only "$base" origin/sync -- . \
-            ':(exclude).github' \
-            ':(exclude).github/**' > "$changed_paths"
-
-          if [ ! -s "$changed_paths" ]; then
-            echo "Only preserved paths changed upstream; recording merge"
-          else
-            while IFS= read -r -d '' path; do
-              case "$path" in
-                .github|.github/*) continue ;;
-                src/*/*)
-                  IFS=/ read -r first second third rest <<< "$path"
-                  printf '%s/%s/%s\0' "$first" "$second" "$third"
-                  ;;
-                *)
-                  printf '%s\0' "$path"
-                  ;;
-              esac
-            done < "$changed_paths" | sort -zu > "$apply_paths"
-          fi
-
-          git merge --no-ff --no-commit -s ours origin/sync
-
-          if [ -s "$apply_paths" ]; then
-            echo "Applying upstream paths:"
-            tr '\0' '\n' < "$apply_paths"
-
-            while IFS= read -r -d '' path; do
-              git rm -r --ignore-unmatch --quiet -- "$path"
-
-              if git cat-file -e "origin/sync:$path" 2>/dev/null; then
-                git restore --source=origin/sync --staged --worktree -- "$path"
-              fi
-            done < "$apply_paths"
-          fi
-
-          git commit -m "Sync upstream"
-
-          echo "Synced"
-
-      - name: Push changes
-        if: steps.check.outputs.has_changes == 'true'
-        run: git push origin main
+      - name: Sync upstream
+        run: python .github/scripts/sync-upstream.py --push
