@@ -49,13 +49,18 @@ class MangaDto(
     fun toSChapters(): List<SChapter> = chapters?.map {
         SChapter.create().apply {
             url = "${it.id}"
-            name = it.title?.takeIf { t -> t.isNotBlank() }
+            name = it.title?.takeIf { t -> t.isNotBlank() && t.toDoubleOrNull() == null }
                 ?: "Capítulo ${it.chapterNumber?.toString()?.removeSuffix(".0") ?: ""}".trim()
             chapter_number = it.chapterNumber ?: -1f
             date_upload = dateFormat.tryParse(it.createdAt)
         }
     }?.sortedByDescending { it.chapter_number } ?: emptyList()
 }
+
+@Serializable
+class TicketDto(
+    val ticket: String,
+)
 
 @Serializable
 class ChapterDto(
@@ -71,22 +76,5 @@ class ChapterDetailsDto(
 ) {
     fun toPages(baseUrl: String): List<Page> = pages.mapIndexed { index, url ->
         Page(index, imageUrl = baseUrl + url)
-    }
-}
-
-class ChapterAccessTicket(
-    val ticket: String,
-    val expiresAt: Long,
-)
-
-@Serializable
-class ChapterAccessDto(
-    private val ticket: String,
-    private val expiresAt: Long? = null,
-    private val expiresIn: Long? = null,
-) {
-    fun toAccessTicket(now: Long, defaultExpiresInMs: Long): ChapterAccessTicket {
-        val expiry = expiresAt ?: now + (expiresIn ?: defaultExpiresInMs)
-        return ChapterAccessTicket(ticket, expiry)
     }
 }
