@@ -17,7 +17,7 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 
 ### 1.2 JSON Serialization — `toJsonString` / `toJsonRequestBody`
 
-- **Always** use `keiyoushi.utils.toJsonString` when serializing an object into a JSON request body.
+- **Always** use `keiyoushi.utils.toJsonString` when serializing an object to a JSON string.
 - **Always** use `keiyoushi.utils.toJsonRequestBody` when serializing a request DTO into an OkHttp request body.
 - Never use manual `buildJsonObject` concatenation or string interpolation to construct JSON payloads when a DTO is available.
 
@@ -26,6 +26,8 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 - **Always** use `keiyoushi.utils.tryParse` on a `SimpleDateFormat` instance to parse date strings for `SChapter.date_upload`.
 - **Never** write manual `try/catch` blocks or null guards around `SimpleDateFormat.parse()` — `tryParse` handles both failure cases and null inputs and returns `0L` automatically.
 - Declare every `SimpleDateFormat` instance as a `class-level` or `file-level val` — never inside a function or lambda. `SimpleDateFormat` is expensive to construct and not thread-safe; creating it per chapter is a critical performance violation.
+- Always pass `Locale.ROOT` to `SimpleDateFormat` unless the pattern contains locale-sensitive text such as month names; in that case, use the source's actual locale.
+- Set the timezone when it is known or when the pattern uses a literal `'Z'`; otherwise the parser silently falls back to the device timezone.
 - If you need more than one date format (e.g., one for chapters and one for descriptions), declare separate instances at class level.
 
 ### 1.4 Filter Helpers — `firstInstance` / `firstInstanceOrNull`
@@ -42,7 +44,7 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 ### 1.6 Next.js Data Extraction — `extractNextJs` / `extractNextJsRsc`
 
 - For Next.js-based sources, **always** use `keiyoushi.utils.extractNextJs` on a `Document` or `Response` to extract typed data from the hydration payload.
-- For client-side navigation responses (`text/x-component` content type), use `keiyoushi.utils.extractNextJsRsc` on the raw RSC response body string.
+- For client-side navigation responses (`text/x-component` content type), pass the `rsc: 1` request header and call `response.extractNextJs<T>()`; the utility inspects `Content-Type` and routes to RSC parsing without manual body extraction.
 - Never attempt to scrape Next.js hydration data via fragile HTML selectors when these utilities are available.
 
 ### 1.7 URL Utilities — `setUrlWithoutDomain` + `absUrl`
@@ -54,6 +56,12 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 
 - If an API uses Protocol Buffers, use `keiyoushi.utils.parseAsProto` and `keiyoushi.utils.toRequestBodyProto`.
 - Do not hand-roll protobuf decoding, encoding, or request body creation when these helpers apply.
+
+### 1.9 GraphQL Requests — `graphQLPost` / `parseGraphQLAs`
+
+- If a source uses GraphQL, build requests with `keiyoushi.utils.graphQLPost` and parse responses with `keiyoushi.utils.parseGraphQLAs`.
+- Use `@Serializable` DTO classes for GraphQL variables and response data; do not manually build JSON payloads or manually unwrap the GraphQL `data` object.
+- GraphQL query strings should use Kotlin raw multi-dollar interpolation (`$$"""..."""`) so `$variable` syntax does not need manual escaping.
 
 ---
 
@@ -67,6 +75,7 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 
 - Kotlin properties in DTOs **must** use camelCase.
 - JSON keys that are snake_case **must** be mapped using `@SerialName("snake_case_key")`.
+- Use `@SerialName` only when the JSON key differs from the Kotlin property name or is not a valid Kotlin identifier; omit redundant `@SerialName` annotations for matching keys.
 - **Never** use snake_case Kotlin property names in DTOs.
 
 ### 2.3 Visibility
@@ -123,6 +132,7 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 ### 4.2 GraphQL
 
 - When sending GraphQL requests, use Kotlin's raw multi-dollar string interpolation (`$$"""..."""`) for query strings to avoid escaping every `$` variable symbol manually.
+- Prefer `graphQLPost` and `parseGraphQLAs` from `keiyoushi.utils` for GraphQL request construction and response parsing.
 
 ### 4.3 Proxy / Debug Code
 
@@ -137,7 +147,9 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 ### 4.5 Requests, Rate Limits, and Cookies
 
 - When overriding a client, use `network.client.newBuilder()`. Do **not** use deprecated `network.cloudflareClient`.
-- **Never** use `Thread.sleep()` for rate limiting. Use OkHttp's `rateLimit` interceptor instead.
+- When setting a `Referer` header for a site root, include the trailing slash: `.add("Referer", "$baseUrl/")`.
+- Do not use `HttpUrl.Builder` for static URLs. Use string interpolation for static paths and reserve `HttpUrl.Builder` / `.toHttpUrl().newBuilder()` for encoded or conditional query parameters.
+- **Never** use `Thread.sleep()` for rate limiting. Use the `keiyoushi.network.rateLimit` builder extension on `OkHttpClient.Builder` instead.
 - Do not call `client.newCall(...).execute()` inside parse methods such as `pageListParse` or `chapterListParse`. Put extra requests in the normal request/fetch flow.
 - `GET()` and `POST()` accept `HttpUrl`; pass the `HttpUrl` directly instead of converting it with `.toString()`.
 - For URL parsing/manipulation, prefer `HttpUrl` methods such as `pathSegments()` and `queryParameter()` over manual `.split("/")` or regex.
@@ -177,6 +189,7 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 
 ### 5.6 `HttpSource` Workflow
 
+- New online sources should implement `HttpSource` or `SourceFactory`; `ParsedHttpSource` is deprecated and must not be used for new work.
 - Always follow the `HttpSource` call flow. Do not create bypass patterns around `fetchPopularManga`, `fetchLatestManga`, `fetchSearchManga`, `getMangaDetails`, `getChapterList`, `getPageList`, or `fetchImage` unless there is a documented, unavoidable reason.
 - Do not override default `HttpSource` methods if the override only repeats the default implementation. Override only when the source requires a different URL structure, request body, or headers.
 - If `pageListParse` or `chapterListParse` finds no items, return `emptyList()` instead of throwing a hardcoded exception unless the source exposes a specific actionable error.
@@ -279,10 +292,12 @@ Before implementing any functionality from scratch, always check whether an exis
 
 - **lib-cookieinterceptor** — Cookie injection into OkHttp requests for a given domain.
 - **lib-cryptoaes** — AES-CBC decryption compatible with CryptoJS; JSFuck deobfuscation.
-- **lib-randomua** — Real-world User-Agent rotation.
+- **lib-dataimage** — Decodes base64 `data:image` strings into mock URLs that OkHttp can handle.
+- **lib-randomua** — Real-world User-Agent rotation; modules using it must override `getMangaUrl()` or Spotless will fail.
 - **lib-synchrony** — JavaScript deobfuscation via the Synchrony engine (QuickJS sandbox).
 - **lib-textinterceptor** — Renders plain text or HTML as a PNG image page.
 - **lib-unpacker** — Unpacks Dean Edwards–packed JavaScript; substring extraction helpers.
+- **lib-zipinterceptor** — Decodes, stitches, and processes multi-page ZIP/AVIF/SVG image archives.
 
 If you implement something that duplicates a lib's functionality without using it, that is a blocking error. Declare the dependency in `build.gradle` using `implementation(project(':lib:<name>'))`.
 
@@ -315,10 +330,15 @@ The following patterns are **never acceptable** and must be rejected or refactor
 |---|---|
 | `filterIsInstance<T>().first()` / `.firstOrNull()` | `firstInstance<T>()` / `firstInstanceOrNull<T>()` from `keiyoushi.utils` |
 | Local `val json: Json by injectLazy()` for standard parsing | `parseAs` from `keiyoushi.utils` |
+| Local `val proto: ProtoBuf by injectLazy()` for standard protobuf parsing | `parseAsProto` / `toRequestBodyProto` from `keiyoushi.utils` |
 | Manual `JsonObject` / `JsonArray` traversal | `@Serializable` DTO classes with `parseAs<T>()` |
 | `buildJsonObject { put(...) }` for request bodies | `@Serializable` request DTO with `toJsonRequestBody()` |
+| Manual GraphQL JSON requests or manual GraphQL `data` unwrapping | `graphQLPost` and `parseGraphQLAs` |
 | `response.body.string()` for JSON parsing | `response.parseAs<T>()` |
+| Manual RSC response body extraction for Next.js data | `response.extractNextJs<T>()` on the `Response` |
 | `SimpleDateFormat` declared inside a function or lambda | Class-level or file-level `val` |
+| `SimpleDateFormat(pattern)` without an explicit locale | `SimpleDateFormat(pattern, Locale.ROOT)` or the source's actual locale |
+| Literal `'Z'` date pattern without setting timezone | Set `timeZone = TimeZone.getTimeZone("UTC")` or parse `Z` as an offset |
 | Manual `try/catch` around `SimpleDateFormat.parse()` | `tryParse` from `keiyoushi.utils` |
 | `Jsoup.parse(response.body.string())` | `response.asJsoup()` |
 | `.text().trim()` | `.text()` (Jsoup already trims) |
@@ -329,8 +349,10 @@ The following patterns are **never acceptable** and must be rejected or refactor
 | Hardcoded User-Agent (without justification) | `super.headersBuilder()` |
 | Repeated `contains(..., ignoreCase = true)` status checks | Lowercase the source string once |
 | `GET(url)` / `POST(url, body)` without headers | Pass `headers` or custom headers |
+| Root `Referer` header without trailing slash | `.add("Referer", "$baseUrl/")` |
+| `HttpUrl.Builder` for a static URL | String interpolation, e.g. `GET("$baseUrl/manga", headers)` |
 | `network.cloudflareClient` | `network.client.newBuilder()` |
-| `Thread.sleep()` for rate limiting | OkHttp `rateLimit` interceptor |
+| `Thread.sleep()` for rate limiting | `keiyoushi.network.rateLimit` on `OkHttpClient.Builder` |
 | `client.newCall(...).execute()` inside parse methods | Override request/fetch flow methods |
 | Passing `builtHttpUrl.toString()` to `GET()` / `POST()` | Pass the `HttpUrl` directly |
 | Manual URL `.split("/")` / regex parsing | OkHttp `HttpUrl` methods |
@@ -344,6 +366,7 @@ The following patterns are **never acceptable** and must be rejected or refactor
 | Manual `SharedPreferences` via Injekt | `getPreferences()` / `getPreferencesLazy()` |
 | Preference-backed `baseUrl` using `by lazy` | Custom getter reading preferences |
 | Missing `response.use { }` around body processing | Wrap in `response.use { }` |
+| New source extending `ParsedHttpSource` | Extend `HttpSource` or expose sources via `SourceFactory` |
 
 ---
 

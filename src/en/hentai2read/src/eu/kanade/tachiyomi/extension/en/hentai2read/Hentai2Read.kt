@@ -9,7 +9,7 @@ import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
-import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
@@ -21,7 +21,7 @@ import rx.Observable
 import java.util.Calendar
 import java.util.regex.Pattern
 
-class Hentai2Read : ParsedHttpSource() {
+class Hentai2Read : HttpSource() {
 
     override val name = "Hentai2Read"
 
@@ -45,15 +45,19 @@ class Hentai2Read : ParsedHttpSource() {
         lateinit var nextSearchPage: String
     }
 
-    override fun popularMangaSelector() = "div.book-grid-item"
+    private fun popularMangaSelector() = "div.book-grid-item"
 
-    override fun latestUpdatesSelector() = popularMangaSelector()
+    private fun latestUpdatesSelector() = popularMangaSelector()
 
     override fun popularMangaRequest(page: Int) = GET("$baseUrl/hentai-list/all/any/all/most-popular/$page/", headers)
 
     override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/hentai-list/all/any/all/last-updated/$page/", headers)
 
-    override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
+    override fun popularMangaParse(response: Response): MangasPage = parseMangaPage(response, popularMangaSelector(), ::popularMangaFromElement, popularMangaNextPageSelector())
+
+    override fun latestUpdatesParse(response: Response): MangasPage = parseMangaPage(response, latestUpdatesSelector(), ::latestUpdatesFromElement, latestUpdatesNextPageSelector())
+
+    private fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
         thumbnail_url = element.select("img").attr("abs:src")
         element.select("div.overlay-title a").let {
             title = it.text()
@@ -61,11 +65,11 @@ class Hentai2Read : ParsedHttpSource() {
         }
     }
 
-    override fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
+    private fun latestUpdatesFromElement(element: Element): SManga = popularMangaFromElement(element)
 
-    override fun popularMangaNextPageSelector() = "a#js-linkNext"
+    private fun popularMangaNextPageSelector() = "a#js-linkNext"
 
-    override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
+    private fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
 
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> = if (query.startsWith(PREFIX_ID_SEARCH)) {
         val id = query.removePrefix(PREFIX_ID_SEARCH)
@@ -118,11 +122,13 @@ class Hentai2Read : ParsedHttpSource() {
 
     // If the user wants to search by a sort order other than alphabetical, we have to make another call
     private fun parseSearch(response: Response, page: Int, sortOrder: String?): MangasPage {
-        val document = if (page == 1 && sortOrder != null) {
-            response.asJsoup().select("li.dropdown li:contains($sortOrder) a").first()!!.attr("abs:href")
-                .let { client.newCall(GET(it, headers)).execute().asJsoup() }
-        } else {
-            response.asJsoup()
+        val document = response.use { res ->
+            if (page == 1 && sortOrder != null) {
+                res.asJsoup().select("li.dropdown li:contains($sortOrder) a").first()!!.attr("abs:href")
+                    .let { client.newCall(GET(it, headers)).execute().use { sortedResponse -> sortedResponse.asJsoup() } }
+            } else {
+                res.asJsoup()
+            }
         }
 
         val mangas = document.select(searchMangaSelector()).map { element ->
@@ -139,13 +145,17 @@ class Hentai2Read : ParsedHttpSource() {
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = throw UnsupportedOperationException()
 
-    override fun searchMangaSelector() = popularMangaSelector()
+    override fun searchMangaParse(response: Response): MangasPage = parseMangaPage(response, searchMangaSelector(), ::searchMangaFromElement, searchMangaNextPageSelector())
 
-    override fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
+    private fun searchMangaSelector() = popularMangaSelector()
 
-    override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
+    private fun searchMangaFromElement(element: Element): SManga = popularMangaFromElement(element)
 
-    override fun mangaDetailsParse(document: Document): SManga {
+    private fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
+
+    override fun mangaDetailsParse(response: Response): SManga = response.use { mangaDetailsParse(it.asJsoup()) }
+
+    private fun mangaDetailsParse(document: Document): SManga {
         val infoElement = document.select("ul.list-simple-mini").first()!!
 
         val manga = SManga.create()
@@ -196,9 +206,13 @@ class Hentai2Read : ParsedHttpSource() {
         else -> SManga.UNKNOWN
     }
 
-    override fun chapterListSelector() = "ul.nav-chapters > li > div.media > a"
+    override fun chapterListParse(response: Response): List<SChapter> = response.use { res ->
+        res.asJsoup().select(chapterListSelector()).map { chapterFromElement(it) }
+    }
 
-    override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
+    private fun chapterListSelector() = "ul.nav-chapters > li > div.media > a"
+
+    private fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
         setUrlWithoutDomain(element.attr("href"))
         val time = element.select("div > small").text().substringAfter("about").substringBefore("ago")
         name = element.ownText().trim()
@@ -238,21 +252,40 @@ class Hentai2Read : ParsedHttpSource() {
         }
     }
 
-    override fun pageListParse(response: Response): List<Page> {
+    override fun pageListParse(response: Response): List<Page> = response.use { res ->
         val pages = mutableListOf<Page>()
-        val m = pagesUrlPattern.matcher(response.body.string())
+        val m = pagesUrlPattern.matcher(res.body.string())
         var i = 0
         while (m.find()) {
             m.group(1)?.split(",")?.forEach {
-                pages.add(Page(i++, "", IMAGE_BASE_URL + it.trim('"').replace("""\/""", "/")))
+                pages.add(Page(i++, imageUrl = IMAGE_BASE_URL + it.trim('"').replace("""\/""", "/")))
             }
         }
-        return pages
+        pages
     }
 
-    override fun pageListParse(document: Document): List<Page> = throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
-    override fun imageUrlParse(document: Document) = throw UnsupportedOperationException()
+    private fun parseMangaPage(
+        response: Response,
+        selector: String,
+        fromElement: (Element) -> SManga,
+        nextPageSelector: String,
+    ): MangasPage = response.use { res ->
+        parseMangaPage(res.asJsoup(), selector, fromElement, nextPageSelector)
+    }
+
+    private fun parseMangaPage(
+        document: Document,
+        selector: String,
+        fromElement: (Element) -> SManga,
+        nextPageSelector: String,
+    ): MangasPage {
+        val mangas = document.select(selector).map(fromElement)
+        val hasNextPage = document.selectFirst(nextPageSelector) != null
+
+        return MangasPage(mangas, hasNextPage)
+    }
 
     private class MangaNameSelect : Filter.Select<String>("Manga Name", arrayOf("Contains", "Starts With", "Ends With"))
     private class ArtistName : Filter.Text("Artist")
