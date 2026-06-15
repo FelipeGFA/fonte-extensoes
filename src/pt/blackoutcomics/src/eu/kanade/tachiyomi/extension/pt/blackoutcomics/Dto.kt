@@ -6,10 +6,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 class SearchResponse(
-    private val items: List<SearchItem> = emptyList(),
-) {
-    fun toSMangaList(baseUrl: String): List<SManga> = items.map { it.toSManga(baseUrl) }
-}
+    val items: List<SearchItem> = emptyList(),
+)
 
 @Serializable
 class SearchItem(
@@ -18,16 +16,9 @@ class SearchItem(
     @SerialName("PJT_IMG_PR") private val imgPr: String? = null,
     @SerialName("PJT_IMG_PR_URL") private val imgUrl: String? = null,
 ) {
-    fun toSManga(baseUrl: String): SManga = SManga.create().apply {
+    fun toSManga(baseUrl: String) = SManga.create().apply {
         title = name
         url = "/comics/$id"
-        thumbnail_url = imgUrl ?: imgPr?.let { "$baseUrl/$it" }
+        thumbnail_url = imgUrl ?: ("$baseUrl/" + imgPr)
     }
-}
-
-@Serializable
-class LoginResponse(
-    private val success: String? = null,
-) {
-    fun isSuccess() = success != null
 }
