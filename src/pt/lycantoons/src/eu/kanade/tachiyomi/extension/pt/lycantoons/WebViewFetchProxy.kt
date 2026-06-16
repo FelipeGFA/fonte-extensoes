@@ -26,7 +26,7 @@ class WebViewFetchProxy(
 ) : Interceptor {
 
     private val app: Application by injectLazy()
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler by lazy { Handler(Looper.getMainLooper()) }
     private val homeUrl = "$baseUrl/"
     private val host = baseUrl.toHttpUrl().host
 
