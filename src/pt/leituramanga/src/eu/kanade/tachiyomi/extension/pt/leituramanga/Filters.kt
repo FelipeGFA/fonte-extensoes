@@ -108,8 +108,10 @@ private val genres = listOf(
 
 private val status = listOf(
     Pair("Todos", ""),
-    Pair("Em andamento", "Ongoing"),
-    Pair("Completo", "Completed"),
+    Pair("Em andamento", "1"),
+    Pair("Completo", "2"),
+    Pair("Hiato", "3"),
+    Pair("Cancelado", "4"),
 )
 
 private val sort = listOf(
