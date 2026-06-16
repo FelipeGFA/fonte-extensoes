@@ -43,7 +43,6 @@ class YomuComics : HttpSource() {
 
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
-        .add("x-yomu-web", "true")
 
     // Popular
 
@@ -124,7 +123,6 @@ class YomuComics : HttpSource() {
 
         val requestHeaders = headers.newBuilder()
             .set("Referer", chapterPageUrl)
-            .set("RSC", "1")
             .build()
 
         return GET(chapterPageUrl, requestHeaders)
@@ -150,7 +148,11 @@ class YomuComics : HttpSource() {
 
     override fun imageRequest(page: Page): Request {
         val requestHeaders = headers.newBuilder()
+            .set("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
             .set("Referer", "$baseUrl/")
+            .set("Sec-Fetch-Dest", "image")
+            .set("Sec-Fetch-Mode", "no-cors")
+            .set("Sec-Fetch-Site", "same-site")
             .build()
         return GET(page.imageUrl!!, requestHeaders)
     }
