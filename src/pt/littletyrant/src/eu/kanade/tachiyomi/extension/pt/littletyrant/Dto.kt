@@ -8,14 +8,20 @@ import org.jsoup.nodes.Document
 class ChapterDto(
     private val `data`: HtmlDto,
 ) {
-    fun isEmpty() = data.html.isBlank()
-    fun toJsoup(baseUrl: String): Document = Jsoup.parseBodyFragment(data.html, baseUrl)
+    fun isEmpty() = data.html().isBlank()
+    fun toJsoup(baseUrl: String): Document = Jsoup.parseBodyFragment(data.html(), baseUrl)
 }
 
 @Serializable
 class HtmlDto(
-    val html: String,
-)
+    private val html: String,
+) {
+    fun html(): String = html
+}
 
 @Serializable
-class TokenDto(val token: String)
+class TokenDto(
+    private val token: String,
+) {
+    fun token(): String = token
+}
