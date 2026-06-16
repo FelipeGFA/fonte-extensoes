@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.pt.lycantoons
 
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
+import keiyoushi.utils.firstInstanceOrNull
 
 class SeriesTypeFilter :
     ChoiceFilter(
@@ -65,16 +66,14 @@ class TagCheckBox(
     val value: String,
 ) : Filter.CheckBox(name)
 
-inline fun <reified T : Filter<*>> FilterList.find(): T? = this.filterIsInstance<T>().firstOrNull()
+inline fun <reified T : ChoiceFilter> FilterList.valueOrEmpty(): String = firstInstanceOrNull<T>()?.getValue().orEmpty()
 
-inline fun <reified T : ChoiceFilter> FilterList.valueOrEmpty(): String = find<T>()?.getValue().orEmpty()
-
-fun FilterList.selectedTags(): List<String> = find<TagsFilter>()?.state
-    ?.filter { it.state }
-    ?.map { it.value }
+fun FilterList.selectedTags(): List<String> = firstInstanceOrNull<TagsFilter>()?.state
+    ?.filter(TagCheckBox::state)
+    ?.map(TagCheckBox::value)
     .orEmpty()
 
-object LycanToonsFilters {
+object Filters {
     fun get(): FilterList = FilterList(
         SeriesTypeFilter(),
         StatusFilter(),
