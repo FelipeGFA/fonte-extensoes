@@ -130,9 +130,11 @@ class YomuComics : HttpSource() {
 
     override fun pageListParse(response: Response): List<Page> {
         val data = response.extractNextJs<ChapterPageDto> {
-            it is JsonObject &&
-                it["chapter"] is JsonObject &&
-                (it["chapter"] as JsonObject)["imagens_lista"] is JsonArray
+            val chapter = (it as? JsonObject)?.get("chapter") as? JsonObject
+            chapter != null &&
+                chapter["imagens_lista"] is JsonArray &&
+                "id" in chapter &&
+                "number" in chapter
         }
 
         if (data != null && data.chapter.images.isNotEmpty()) {
@@ -175,8 +177,10 @@ class YomuComics : HttpSource() {
         // mangas field name changes frequently
         val mangasList = resultString
             .parseAs<JsonElement>()
-            .jsonObject.values
-            .firstNotNullOfOrNull { v ->
+            .jsonObject.entries
+            .asSequence()
+            .filterNot { (key, _) -> key.startsWith("_") }
+            .firstNotNullOfOrNull { (_, v) ->
                 val jsonArray = when (v) {
                     is JsonArray -> v
 
