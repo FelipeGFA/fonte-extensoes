@@ -1,7 +1,7 @@
 ext {
     extName = 'Yomu Comics'
     extClass = '.YomuComics'
-    extVersionCode = 53
+    extVersionCode = 51
     isNsfw = true
 
 }

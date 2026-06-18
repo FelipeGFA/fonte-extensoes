@@ -123,6 +123,7 @@ class YomuComics : HttpSource() {
 
         val requestHeaders = headers.newBuilder()
             .set("Referer", chapterPageUrl)
+            .set("RSC", "1")
             .build()
 
         return GET(chapterPageUrl, requestHeaders)
@@ -130,11 +131,9 @@ class YomuComics : HttpSource() {
 
     override fun pageListParse(response: Response): List<Page> {
         val data = response.extractNextJs<ChapterPageDto> {
-            val chapter = (it as? JsonObject)?.get("chapter") as? JsonObject
-            chapter != null &&
-                chapter["imagens_lista"] is JsonArray &&
-                "id" in chapter &&
-                "number" in chapter
+            it is JsonObject &&
+                it["chapter"] is JsonObject &&
+                (it["chapter"] as JsonObject)["imagens_lista"] is JsonArray
         }
 
         if (data != null && data.chapter.images.isNotEmpty()) {
@@ -150,11 +149,7 @@ class YomuComics : HttpSource() {
 
     override fun imageRequest(page: Page): Request {
         val requestHeaders = headers.newBuilder()
-            .set("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
             .set("Referer", "$baseUrl/")
-            .set("Sec-Fetch-Dest", "image")
-            .set("Sec-Fetch-Mode", "no-cors")
-            .set("Sec-Fetch-Site", "same-site")
             .build()
         return GET(page.imageUrl!!, requestHeaders)
     }
@@ -177,10 +172,8 @@ class YomuComics : HttpSource() {
         // mangas field name changes frequently
         val mangasList = resultString
             .parseAs<JsonElement>()
-            .jsonObject.entries
-            .asSequence()
-            .filterNot { (key, _) -> key.startsWith("_") }
-            .firstNotNullOfOrNull { (_, v) ->
+            .jsonObject.values
+            .mapNotNull { v ->
                 val jsonArray = when (v) {
                     is JsonArray -> v
 
@@ -198,7 +191,9 @@ class YomuComics : HttpSource() {
                 jsonArray?.runCatching {
                     map { it.parseAs<LibraryMangaDto>() }
                 }?.getOrNull()
-            } ?: emptyList()
+            }
+            .maxByOrNull { it.size } // ignore fake key
+            ?: emptyList()
 
         val mangas = mangasList.map(LibraryMangaDto::toSManga)
         val hasNextPage = pagination.page < pagination.totalPages
