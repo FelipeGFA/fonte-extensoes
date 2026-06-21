@@ -131,9 +131,12 @@ class YomuComics : HttpSource() {
 
     override fun pageListParse(response: Response): List<Page> {
         val data = response.extractNextJs<ChapterPageDto> {
-            it is JsonObject &&
-                it["chapter"] is JsonObject &&
-                (it["chapter"] as JsonObject)["imagens_lista"] is JsonArray
+            val chapterObj = (it as? JsonObject)?.get("chapter") as? JsonObject
+            val imagesList = chapterObj?.get("imagens_lista") as? JsonArray
+
+            imagesList != null && imagesList.any { img ->
+                (img as? JsonPrimitive)?.contentOrNull?.contains("cdn.") == true
+            }
         }
 
         if (data != null && data.chapter.images.isNotEmpty()) {
@@ -191,6 +194,9 @@ class YomuComics : HttpSource() {
                 jsonArray?.runCatching {
                     map { it.parseAs<LibraryMangaDto>() }
                 }?.getOrNull()
+            }
+            .filter { list ->
+                list.any { it.cover?.contains("cdn.") == true }
             }
             .maxByOrNull { it.size } // ignore fake key
             ?: emptyList()
