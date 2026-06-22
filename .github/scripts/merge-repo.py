@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import re
 import index_pb2
+from google.protobuf import json_format
 
 REMOTE_REPO: Path = Path.cwd()
 LOCAL_REPO: Path = REMOTE_REPO.parent.joinpath("main/repo")
@@ -113,8 +114,6 @@ index.extend(local_index)
 index.sort(key=lambda x: x["pkg"])
 
 # Save files
-with REMOTE_REPO.joinpath("index.json").open("w", encoding="utf-8") as index_file:
-    json.dump(index, index_file, ensure_ascii=False, indent=2)
 
 
 def extract_extension_lib(version: str) -> str:
@@ -158,6 +157,9 @@ index_pb = index_pb2.Index(
         ]
     )
 )
+
+with REMOTE_REPO.joinpath("index.json").open("w", encoding="utf-8") as index_file:
+    index_file.write(json_format.MessageToJson(index_pb, always_print_fields_with_no_presence=False, preserving_proto_field_name=True))
 
 with REMOTE_REPO.joinpath("index.pb").open("wb") as index_pb_file:
     index_pb_file.write(index_pb.SerializeToString())
