@@ -1,8 +1,11 @@
+import gzip
 import html
 import sys
 import json
 from pathlib import Path
 import shutil
+import re
+import index_pb2
 
 REMOTE_REPO: Path = Path.cwd()
 LOCAL_REPO: Path = REMOTE_REPO.parent.joinpath("main/repo")
@@ -116,6 +119,54 @@ with REMOTE_REPO.joinpath("index.json").open("w", encoding="utf-8") as index_fil
 for item in index:
     for source in item["sources"]:
         source.pop("versionId", None)
+
+def extract_extension_lib(version: str) -> str:
+    if match := re.search(r'(\d+)\.(\d+)', version):
+        return f"{match.group(1)}.{match.group(2)}"
+
+    raise ValueError(f"Version {version} doesn't contain MAJOR.MINOR")
+
+index_pb = index_pb2.Index(
+    name = "FelipeGFA",
+    badgeLabel = "FGFA",
+    signingKey = "9bf5754a79fd686cb77e6335a2a9e5351ad73ca824c27b09e7b3437f806fea77",
+    contact=index_pb2.Contact(
+        website="https://felipegfa.github.io",
+        discord="https://discord.gg/QpyjwsWENq"
+    ),
+    extensionList=index_pb2.ExtensionList(
+        extensions=[
+            index_pb2.Extension(
+                name=extension["name"].replace("Tachiyomi: ", ""),
+                packageName=extension["pkg"],
+                resources=index_pb2.Resources(
+                    apkUrl=f"https://raw.githubusercontent.com/FelipeGFA/extensoes/refs/heads/repo/apk/{extension['apk']}",
+                    iconUrl=f"https://raw.githubusercontent.com/FelipeGFA/extensoes/refs/heads/repo/icon/{extension['pkg']}.png",
+                ),
+                extensionLib=extract_extension_lib(extension["version"]),
+                versionCode=extension["code"],
+                versionName=extension["version"],
+                contentWarning=index_pb2.CONTENT_WARNING_NSFW if extension["nsfw"] == 1 else index_pb2.CONTENT_WARNING_SAFE,
+                sources=[
+                    index_pb2.Source(
+                        id=int(source["id"]),
+                        name=source["name"],
+                        language=source["lang"],
+                        homeUrl=source["baseUrl"],
+                    )
+                    for source in extension["sources"]
+                ]
+            )
+            for extension in index
+        ]
+    )
+)
+
+with REMOTE_REPO.joinpath("index.pb").open("wb") as index_pb_file:
+    index_pb_file.write(index_pb.SerializeToString())
+
+with REMOTE_REPO.joinpath("index.pb.gz").open("wb") as index_pb_file:
+    index_pb_file.write(gzip.compress(index_pb.SerializeToString()))
 
 with REMOTE_REPO.joinpath("index.min.json").open("w", encoding="utf-8") as index_min_file:
     json.dump(index, index_min_file, ensure_ascii=False, separators=(",", ":"))
