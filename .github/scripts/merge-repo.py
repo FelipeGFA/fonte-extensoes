@@ -38,7 +38,7 @@ def get_existing_modules() -> set[str]:
 existing_modules = get_existing_modules()
 
 # Load indexes
-with REMOTE_REPO.joinpath("index.json").open() as remote_index_file:
+with REMOTE_REPO.joinpath("index.min.json").open() as remote_index_file:
     remote_index = json.load(remote_index_file)
 
 with LOCAL_REPO.joinpath("index.min.json").open() as local_index_file:
