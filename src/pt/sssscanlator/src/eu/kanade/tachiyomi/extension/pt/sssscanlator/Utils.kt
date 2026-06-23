@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.pt.sssscanlator
 
 import eu.kanade.tachiyomi.source.model.SManga
 import keiyoushi.utils.extractNextJs
+import keiyoushi.utils.parseAs
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -13,9 +14,16 @@ import org.jsoup.nodes.Element
 internal fun extractSeriesPayload(document: Document, mangaSlug: String): SeriesPayloadDto {
     require(mangaSlug.isNotBlank()) { "Slug da obra nao encontrado na URL" }
 
-    return document.extractNextJs<SeriesPayloadDto> { element ->
-        element.matchesSeriesPayload(mangaSlug)
-    } ?: throw IllegalStateException("Payload da obra nao encontrado para slug=$mangaSlug")
+    val matches = mutableListOf<JsonElement>()
+    document.extractNextJs<JsonElement> { element ->
+        if (element.matchesSeriesPayload(mangaSlug)) matches.add(element)
+        false
+    }
+
+    val chapterArrays = matches.takeIf { it.isNotEmpty() }?.map { it.parseAs<JsonObject>()["capitulos_lista"]!!.parseAs<JsonArray>() }
+        ?: error("Payload da obra nao encontrado para slug=$mangaSlug")
+
+    return matches[selectRealArray(chapterArrays)!!].parseAs()
 }
 
 internal fun extractBadgeTexts(titleElement: Element?): List<String> {
@@ -49,9 +57,6 @@ private fun JsonElement.matchesSeriesPayload(expectedSlug: String): Boolean {
     val payload = this as? JsonObject ?: return false
     if (payload["slug"]?.jsonPrimitive?.contentOrNull != expectedSlug) return false
 
-    val coverImage = payload["coverImage"]?.jsonPrimitive?.contentOrNull
-    if (coverImage != null && !coverImage.contains("cdn.")) return false
-
     val chapters = payload["capitulos_lista"] as? JsonArray ?: return false
     val hasValidChapterShape = chapters.isEmpty() || chapters.any { chapter ->
         val chapterObject = chapter as? JsonObject ?: return@any false
@@ -65,4 +70,18 @@ private fun JsonElement.matchesSeriesPayload(expectedSlug: String): Boolean {
                 "coverImage" in payload ||
                 "description" in payload
             )
+}
+
+// ignore fake matches with dummy fields
+fun selectRealArray(arrays: List<JsonArray>): Int? {
+    if (arrays.isEmpty()) return null
+    if (arrays.size == 1) return 0
+
+    val emptyIndex = arrays.indexOfFirst { it.isEmpty() }
+    if (emptyIndex != -1) return emptyIndex
+
+    return arrays.indices.maxByOrNull { index ->
+        val array = arrays[index]
+        array.sumOf { it.toString().length }.toDouble() / array.size
+    }
 }
