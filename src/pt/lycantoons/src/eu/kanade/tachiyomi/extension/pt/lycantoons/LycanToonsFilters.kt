@@ -4,6 +4,24 @@ import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import keiyoushi.utils.firstInstanceOrNull
 
+internal val tagMapping = mapOf(
+    "action" to "Ação",
+    "adventure" to "Aventura",
+    "comedy" to "Comédia",
+    "drama" to "Drama",
+    "fantasy" to "Fantasia",
+    "horror" to "Terror",
+    "mystery" to "Mistério",
+    "romance" to "Romance",
+    "school_life" to "Vida escolar",
+    "sci_fi" to "Sci-fi",
+    "slice_of_life" to "Slice of life",
+    "sports" to "Esportes",
+    "supernatural" to "Sobrenatural",
+    "thriller" to "Thriller",
+    "tragedy" to "Tragédia",
+)
+
 class SeriesTypeFilter :
     ChoiceFilter(
         "Tipo",
@@ -42,23 +60,7 @@ open class ChoiceFilter(
 class TagsFilter :
     Filter.Group<TagCheckBox>(
         "Tags",
-        listOf(
-            TagCheckBox("Ação", "action"),
-            TagCheckBox("Aventura", "adventure"),
-            TagCheckBox("Comédia", "comedy"),
-            TagCheckBox("Drama", "drama"),
-            TagCheckBox("Fantasia", "fantasy"),
-            TagCheckBox("Terror", "horror"),
-            TagCheckBox("Mistério", "mystery"),
-            TagCheckBox("Romance", "romance"),
-            TagCheckBox("Vida escolar", "school_life"),
-            TagCheckBox("Sci-fi", "sci_fi"),
-            TagCheckBox("Slice of life", "slice_of_life"),
-            TagCheckBox("Esportes", "sports"),
-            TagCheckBox("Sobrenatural", "supernatural"),
-            TagCheckBox("Thriller", "thriller"),
-            TagCheckBox("Tragédia", "tragedy"),
-        ),
+        tagMapping.map { TagCheckBox(it.value, it.key) },
     )
 
 class TagCheckBox(
@@ -69,11 +71,11 @@ class TagCheckBox(
 inline fun <reified T : ChoiceFilter> FilterList.valueOrEmpty(): String = firstInstanceOrNull<T>()?.getValue().orEmpty()
 
 fun FilterList.selectedTags(): List<String> = firstInstanceOrNull<TagsFilter>()?.state
-    ?.filter(TagCheckBox::state)
-    ?.map(TagCheckBox::value)
+    ?.filter { it.state }
+    ?.map { it.value }
     .orEmpty()
 
-object Filters {
+object LycanToonsFilters {
     fun get(): FilterList = FilterList(
         SeriesTypeFilter(),
         StatusFilter(),

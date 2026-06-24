@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.pt.lycantoons
 
+import app.cash.quickjs.QuickJs
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -8,14 +9,15 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.extractNextJs
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import okhttp3.Request
 import okhttp3.Response
+import org.jsoup.nodes.Element
+import rx.Observable
 
 class LycanToons : HttpSource() {
 
@@ -28,108 +30,135 @@ class LycanToons : HttpSource() {
     override val supportsLatest = true
 
     override val client = network.client.newBuilder()
-        .addInterceptor(WebViewFetchProxy(baseUrl))
-        .addInterceptor(ImageProxy(CDN_URL))
-        .rateLimit(2)
+        .addInterceptor(WebViewInterceptor(headers["User-Agent"]))
+        .rateLimit(5)
         .build()
 
-    private val apiHeaders by lazy {
+    private val rscHeaders by lazy {
         headers.newBuilder()
-            .set("Accept", "application/json")
-            .set("Referer", "$baseUrl/")
+            .add("RSC", "1")
             .build()
     }
+
+    override fun headersBuilder() = super.headersBuilder()
+        .add("Referer", "$baseUrl/")
 
     // =====================Popular=====================
 
     override fun popularMangaRequest(page: Int): Request = metricsRequest("popular", page)
 
-    override fun popularMangaParse(response: Response): MangasPage = response.use {
-        it.parseAs<PopularResponse>().toMangasPage()
-    }
+    override fun popularMangaParse(response: Response): MangasPage = response.parseAs<PopularResponse>().toMangasPage()
 
     // =====================Latest=====================
 
     override fun latestUpdatesRequest(page: Int): Request = metricsRequest("recently-updated", page)
 
-    override fun latestUpdatesParse(response: Response): MangasPage = response.use {
-        it.parseAs<PopularResponse>().toMangasPage()
-    }
+    override fun latestUpdatesParse(response: Response): MangasPage = response.parseAs<PopularResponse>().toMangasPage()
 
     // =====================Search=====================
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        var search = query
+        val tags = filters.selectedTags().toMutableList()
+
+        val genreEntry = tagMapping.entries.find { it.value.equals(query, ignoreCase = true) }
+        if (genreEntry != null) {
+            tags.add(genreEntry.key)
+            search = ""
+        }
+
         val payload = SearchRequestBody(
             limit = PAGE_LIMIT,
             page = page,
-            search = query,
+            search = search,
             seriesType = filters.valueOrEmpty<SeriesTypeFilter>(),
             status = filters.valueOrEmpty<StatusFilter>(),
-            tags = filters.selectedTags(),
+            tags = tags.distinct(),
         )
 
-        return POST("$baseUrl/api/series", apiHeaders, payload.toJsonRequestBody())
+        return POST("$baseUrl/api/series", headers, payload.toJsonRequestBody())
     }
 
-    override fun searchMangaParse(response: Response): MangasPage = response.use {
-        it.parseAs<SearchResponse>().toMangasPage()
-    }
+    override fun searchMangaParse(response: Response): MangasPage = response.parseAs<SearchResponse>().toMangasPage()
 
-    override fun getFilterList(): FilterList = Filters.get()
+    override fun getFilterList(): FilterList = LycanToonsFilters.get()
 
     // =====================Details=====================
 
     override fun getMangaUrl(manga: SManga): String = "$baseUrl${manga.url}"
 
-    override fun mangaDetailsRequest(manga: SManga): Request = seriesRequest(manga.slug())
+    override fun mangaDetailsRequest(manga: SManga): Request = GET("$baseUrl/series/${manga.slug()}", rscHeaders)
 
-    override fun mangaDetailsParse(response: Response): SManga = response.use {
-        it.parseAs<SeriesDto>().toSManga()
-    }
+    override fun mangaDetailsParse(response: Response): SManga = response.extractNextJs<SeriesDto>()!!.toSManga()
 
     // =====================Chapters=====================
 
-    override fun chapterListRequest(manga: SManga): Request = seriesRequest(manga.slug())
+    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
+        val slug = manga.slug()
+        val chapters = mutableListOf<ChapterDto>()
+        var skip = 0
+        var hasNext = true
 
-    override fun chapterListParse(response: Response): List<SChapter> = response.use {
-        it.parseAs<SeriesDto>().toChapterList()
+        while (hasNext) {
+            val batch = client.newCall(chapterPageRequest(slug, skip)).execute()
+                .parseAs<ChapterResponse>()
+                .chapters
+
+            chapters.addAll(batch)
+
+            if (batch.size < CHAPTER_LIMIT) {
+                hasNext = false
+            } else {
+                skip += CHAPTER_LIMIT
+            }
+        }
+
+        chapters
+            .map { it.toSChapter(slug) }
+            .sortedByDescending { it.chapter_number }
     }
+
+    private fun chapterPageRequest(slug: String, skip: Int): Request = GET("$baseUrl/api/series/$slug/chapters?skip=$skip", headers)
+
+    override fun chapterListParse(response: Response): List<SChapter> = throw UnsupportedOperationException()
 
     // =====================Pages========================
 
-    override fun getChapterUrl(chapter: SChapter): String = "$baseUrl${chapter.url.substringBefore("?")}"
+    override fun pageListRequest(chapter: SChapter): Request = GET("$baseUrl${chapter.url}", headers)
 
-    override fun pageListRequest(chapter: SChapter): Request {
-        val chapterUrl = getChapterUrl(chapter)
+    override fun pageListParse(response: Response): List<Page> {
+        val document = response.asJsoup()
+        val script = document.select("script:containsData(self.__next_f)")
+            .joinToString("\n", transform = Element::data)
 
-        val requestHeaders = headers.newBuilder()
-            .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-            .set("Referer", chapterUrl)
-            .build()
+        val content = QuickJs.create().use {
+            it.evaluate(
+                """
+                globalThis.self = globalThis;
+                $script
+                self.__next_f.map(it => it[it.length - 1]).join('')
+                """.trimIndent(),
+            ) as String
+        }
 
-        return GET(chapterUrl, requestHeaders)
-    }
-
-    override fun pageListParse(response: Response): List<Page> = response.use {
-        val dto = it.extractNextJs<ChapterPageDto> { element ->
-            element is JsonObject && element["imageUrls"] is JsonArray
-        } ?: throw IllegalStateException("Nenhuma pagina encontrada para este capitulo")
-
-        dto.toPageList()
+        return PAGES_REGEX.find(content)
+            ?.groupValues?.last()
+            ?.parseAs<List<String>>()
+            ?.mapIndexed { index, imageUrl -> Page(index, imageUrl = imageUrl) }
+            ?: emptyList()
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
 
     // =====================Utils=====================
 
-    private fun metricsRequest(path: String, page: Int): Request = GET("$baseUrl/api/metrics/$path?limit=$PAGE_LIMIT&page=$page", apiHeaders)
-
-    private fun seriesRequest(slug: String): Request = GET("$baseUrl/api/series/$slug", apiHeaders)
+    private fun metricsRequest(path: String, page: Int): Request = GET("$baseUrl/api/metrics/$path?limit=$PAGE_LIMIT&page=$page", headers)
 
     private fun SManga.slug(): String = url.substringAfterLast("/")
 
     companion object {
-        private const val CDN_URL = "https://cdn.lycantoons.com"
-        private const val PAGE_LIMIT = 13
+        private const val PAGE_LIMIT = 20
+        private const val CHAPTER_LIMIT = 100
+        private val PAGES_REGEX = """"imageUrls":([^]]+])""".toRegex()
     }
 }
