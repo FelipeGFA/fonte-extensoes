@@ -3,7 +3,7 @@ ext {
     extClass = '.TiaManhwa'
     themePkg = 'madara'
     baseUrl = 'https://tiamanhwa.com'
-    overrideVersionCode = 3
+    overrideVersionCode = 4
     isNsfw = true
 }
 
