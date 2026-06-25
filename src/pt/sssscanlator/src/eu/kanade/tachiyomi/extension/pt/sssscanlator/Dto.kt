@@ -12,6 +12,7 @@ import java.util.TimeZone
 @Serializable
 class LibraryResponseDto(
     val pagination: LibraryPaginationDto = LibraryPaginationDto(),
+    val garimpo: String? = null,
 )
 
 @Serializable
@@ -22,11 +23,13 @@ class LibraryPaginationDto(
 
 @Serializable
 class LibraryMangaDto(
-    val title: String,
-    val cover: String? = null,
-    val slug: String,
-    val type: String? = null,
+    private val title: String,
+    private val cover: String? = null,
+    private val slug: String,
+    private val type: String? = null,
 ) {
+    val isNovel: Boolean get() = type == "novel"
+
     fun toSManga(): SManga = SManga.create().apply {
         title = this@LibraryMangaDto.title
         thumbnail_url = cover?.takeUnless(String::isBlank)
@@ -35,24 +38,13 @@ class LibraryMangaDto(
 }
 
 @Serializable
-class SeriesPayloadDto(
-    val description: String? = null,
-    val author: String? = null,
-    val artist: String? = null,
-    val coverImage: String? = null,
-    @SerialName("capitulos_lista")
-    val chapters: List<SeriesChapterDto> = emptyList(),
-    private val slug: String? = null,
-)
-
-@Serializable
 class SeriesChapterDto(
-    val number: Double,
-    val title: String? = null,
-    val releaseDate: String? = null,
+    private val number: Double,
+    private val title: String? = null,
+    private val releaseDate: String? = null,
     @SerialName("id")
-    val chapterId: String,
-    val releaseAt: String? = null,
+    private val chapterId: String,
+    private val releaseAt: String? = null,
 ) {
     fun toSChapter(mangaSlug: String): SChapter = SChapter.create().apply {
         val chapterNumberLabel = number.toChapterNumberString()
@@ -64,15 +56,11 @@ class SeriesChapterDto(
     }
 
     companion object {
-        private val RELEASE_AT_MILLIS by lazy {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }
+        private val RELEASE_AT_MILLIS = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
         }
 
-        private val RELEASE_DATE by lazy {
-            SimpleDateFormat("dd/MM/yyyy", Locale.ROOT)
-        }
+        private val RELEASE_DATE = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT)
 
         private fun parseChapterDate(releaseAt: String?, releaseDate: String?): Long {
             RELEASE_AT_MILLIS.tryParse(releaseAt).takeIf { it != 0L }?.let { return it }
@@ -80,11 +68,6 @@ class SeriesChapterDto(
         }
     }
 }
-
-@Serializable
-class ChapterPageDto(
-    val chapter: ChapterImagesDto,
-)
 
 @Serializable
 class ChapterImagesDto(
