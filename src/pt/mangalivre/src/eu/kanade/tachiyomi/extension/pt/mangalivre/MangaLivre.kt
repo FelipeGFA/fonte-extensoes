@@ -34,10 +34,9 @@ class MangaLivre :
 
     override val supportsLatest: Boolean = true
 
-    override val versionId: Int = 2
+    override val versionId: Int = 3
 
     override val client: OkHttpClient = network.client.newBuilder()
-        .addInterceptor(MangaLivreInterceptor(baseUrl, network.client, headers))
         .rateLimit(2, 1.seconds) { it.host == baseUrlHost }
         .build()
 
@@ -52,6 +51,7 @@ class MangaLivre :
         .add("Sec-Fetch-Dest", "empty")
         .add("Sec-Fetch-Mode", "cors")
         .add("Sec-Fetch-Site", "same-origin")
+        .add("x-toonlivre-client", "web-t")
 
     // ============================== Popular =======================================
 
