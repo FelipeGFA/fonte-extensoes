@@ -248,13 +248,13 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 
 - Avoid verbose, redundant, or AI-generated comments that explain obvious code. Prefer clean, self-documenting code.
 
-### 6.6 `extVersionCode`
+### 6.6 `versionCode`
 
-- `extVersionCode` **must** be incremented with every code change, no exceptions.
+- `versionCode` **must** be incremented with every code change, no exceptions.
 
 ### 6.7 NSFW Flag
 
-- Always set `isNsfw = true` in `build.gradle` when the source contains adult content.
+- Always set `contentWarning` in `build.gradle.kts`. It must be set explicitly to one of `ContentWarning.SAFE`, `ContentWarning.MIXED`, or `ContentWarning.NSFW`.
 
 ---
 
@@ -280,8 +280,8 @@ The `keiyoushi.utils` package is the **single most important constraint** in thi
 
 ## 8. MULTI-SOURCE THEMES (lib-multisrc)
 
-- To create a source based on a theme, set `themePkg` in `build.gradle` and extend the theme's base class — do not copy-paste the theme's implementation code.
-- When bumping theme-level changes, increment `baseVersionCode` in the theme's Gradle file. For source-level overrides, increment `overrideVersionCode`.
+- To create a source based on a theme, set `theme = "<theme_name>"` in `build.gradle.kts` and extend the theme's base class — do not copy-paste the theme's implementation code.
+- When bumping theme-level changes, increment `baseVersionCode` in the theme's Gradle file. For source-level overrides, increment `versionCode` in the extension's `build.gradle.kts` file.
 - Source-specific overrides go in the extension's own Kotlin class inheriting from the theme base.
 
 ---
@@ -299,7 +299,7 @@ Before implementing any functionality from scratch, always check whether an exis
 - **lib-unpacker** — Unpacks Dean Edwards–packed JavaScript; substring extraction helpers.
 - **lib-zipinterceptor** — Decodes, stitches, and processes multi-page ZIP/AVIF/SVG image archives.
 
-If you implement something that duplicates a lib's functionality without using it, that is a blocking error. Declare the dependency in `build.gradle` using `implementation(project(':lib:<name>'))`.
+If you implement something that duplicates a lib's functionality without using it, that is a blocking error. Declare the dependency in `build.gradle.kts` using `implementation(project(":lib:<name>"))`.
 
 ---
 

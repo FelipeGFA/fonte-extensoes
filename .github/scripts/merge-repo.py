@@ -41,7 +41,7 @@ existing_modules = get_existing_modules()
 with REMOTE_REPO.joinpath("index.min.json").open() as remote_index_file:
     remote_index = json.load(remote_index_file)
 
-with LOCAL_REPO.joinpath("index.min.json").open() as local_index_file:
+with LOCAL_REPO.joinpath("index.json").open() as local_index_file:
     local_index = json.load(local_index_file)
 
 remote_modules = {pkg_to_module(item["pkg"]) for item in remote_index}
@@ -142,7 +142,7 @@ index_pb = index_pb2.Index(
                 extensionLib=extract_extension_lib(extension["version"]),
                 versionCode=extension["code"],
                 versionName=extension["version"],
-                contentWarning=index_pb2.CONTENT_WARNING_NSFW if extension["nsfw"] == 1 else index_pb2.CONTENT_WARNING_SAFE,
+                contentWarning=int(extension.get("contentWarning", 2 if extension.get("nsfw", 0) == 1 else 0)) + 1,
                 sources=[
                     index_pb2.Source(
                         id=int(source["id"]),
@@ -167,8 +167,17 @@ with REMOTE_REPO.joinpath("index.pb").open("wb") as index_pb_file:
 with REMOTE_REPO.joinpath("index.pb.gz").open("wb") as index_pb_file:
     index_pb_file.write(gzip.compress(index_pb.SerializeToString()))
 
+legacy_json_index = []
+for entry in index:
+    legacy_entry = entry.copy()
+    cw = legacy_entry.get("contentWarning", 0)
+    legacy_entry["nsfw"] = 1 if cw > 0 else 0
+    legacy_entry.pop("libVersion", None)
+    legacy_entry.pop("contentWarning", None)
+    legacy_json_index.append(legacy_entry)
+
 with REMOTE_REPO.joinpath("index.min.json").open("w", encoding="utf-8") as index_min_file:
-    json.dump(index, index_min_file, ensure_ascii=False, separators=(",", ":"))
+    json.dump(legacy_json_index, index_min_file, ensure_ascii=False, separators=(",", ":"))
 
 with REMOTE_REPO.joinpath("index.html").open("w", encoding="utf-8") as index_html_file:
     index_html_file.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>apks</title>\n</head>\n<body>\n<pre>\n')
