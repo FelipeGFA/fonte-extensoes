@@ -39,6 +39,10 @@ class HuntersScans :
         .rateLimit(2)
         .build()
 
+    override fun headersBuilder() = super.headersBuilder()
+        .add("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
+        .add("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
+
     override val mangaSubString = "comics"
 
     override val useLoadMoreRequest = LoadMoreStrategy.Always
@@ -67,20 +71,36 @@ class HuntersScans :
 
     override fun pageListParse(document: Document): List<Page> {
         val script = document.selectFirst("script:containsData(_HuntersOpts)")?.data()
-            ?: return super.pageListParse(document)
 
-        val payload = PAYLOAD_REGEX.find(script)?.groupValues?.get(1)
-        val sk = SK_REGEX.find(script)?.groupValues?.get(1)
+        if (script != null) {
+            val payload = PAYLOAD_REGEX.find(script)?.groupValues?.get(1)
+            val sk = SK_REGEX.find(script)?.groupValues?.get(1)
 
-        if (payload != null && sk != null) {
-            try {
-                val urls = HuntersScanDescrambler.decryptHuntersPayload(payload, sk)
-                return urls.mapIndexed { index, url -> Page(index, document.location(), url) }
-            } catch (e: Exception) {
+            if (!payload.isNullOrEmpty() && sk != null) {
+                try {
+                    val urls = HuntersScanDescrambler.decryptHuntersPayload(payload, sk)
+                    return urls.mapIndexed { index, url -> Page(index, document.location(), url) }
+                } catch (e: Exception) {
+                }
             }
         }
 
-        return super.pageListParse(document)
+        return document.select("div.reading-content img").mapNotNull { img ->
+            val url = img.attr("abs:src").ifEmpty { img.attr("abs:data-src") }
+            if (url.isEmpty()) return@mapNotNull null
+
+            val isBanner = url.contains("discord", true) ||
+                url.contains("vip", true) ||
+                img.hasClass("aligncenter") ||
+                img.hasClass("img-responsive") ||
+                img.attr("alt").contains("Discord", true) ||
+                img.attr("alt").contains("VIP", true) ||
+                url.contains("999.png") ||
+                url.contains("bla2-teste")
+
+            if (isBanner) return@mapNotNull null
+            url
+        }.mapIndexed { index, url -> Page(index, document.location(), url) }
     }
 
     private fun imageInterceptor(chain: Interceptor.Chain): Response {

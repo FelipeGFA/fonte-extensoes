@@ -2,88 +2,106 @@ package eu.kanade.tachiyomi.extension.pt.egotoons
 
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import keiyoushi.utils.tryParse
 import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
+
+private val DATE_FORMATTER = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).apply {
+    timeZone = TimeZone.getTimeZone("UTC")
+}
+
+@Serializable
+data class EgoToonsResponseDto<T>(
+    val sucesso: Boolean,
+    val pagination: EgoToonsPaginationDto? = null,
+    val obras: List<T> = emptyList(),
+    val obra: T? = null,
+    val capitulo: EgoToonsPageListDto? = null,
+)
 
 @Serializable
 data class EgoToonsMangaDto(
     val id: Int,
-    val title: String,
-    val status: String? = null,
-    val synopsis: String? = null,
-    val cover: String,
+    val nome: String? = null,
+    val title: String? = null,
+    val status_nome: String? = null,
+    val descricao: String? = null,
+    val imagem: String? = null,
+    val coverImage: String? = null,
     val tags: List<TagDto> = emptyList(),
-    val genres: List<TagDto> = emptyList(),
-    val author: AuthorDto? = null,
-    val works: Int = 0,
+    val capitulos: List<EgoToonsChapterDto> = emptyList(),
 ) {
-    @Serializable
-    data class AuthorDto(
-        val firstName: String? = null,
-        val lastName: String? = null,
-    ) {
-        val name: String
-            get() = listOfNotNull(firstName, lastName).joinToString(" ")
-    }
-
     @Serializable
     data class TagDto(
         val id: Int = 0,
-        val name: String,
+        val nome: String,
     )
 
     fun toSManga(): SManga = SManga.create().apply {
-        title = this@EgoToonsMangaDto.title
-        thumbnail_url = cover
+        title = this@EgoToonsMangaDto.nome ?: this@EgoToonsMangaDto.title ?: ""
+        val imgUrl = imagem ?: coverImage
+        thumbnail_url = if (imgUrl != null && !imgUrl.startsWith("http")) {
+            if (imgUrl.startsWith("/")) "https://cdn.egotoons.com$imgUrl" else "https://cdn.egotoons.com/$imgUrl"
+        } else {
+            imgUrl
+        }
         url = "obra/$id"
-        author = this@EgoToonsMangaDto.author?.name
-        description = synopsis?.let { Jsoup.parseBodyFragment(it).text() }
-        genre = (tags + genres).joinToString { it.name }
-        status = when (this@EgoToonsMangaDto.status) {
-            "IN_PROGRESS" -> SManga.ONGOING
-            "HIATUS" -> SManga.ON_HIATUS
-            "COMPLETED" -> SManga.COMPLETED
-            "CANCELLED" -> SManga.CANCELLED
+        description = descricao?.let { Jsoup.parseBodyFragment(it, "https://egotoons.com").text() }
+        genre = tags.joinToString { it.nome }
+        status = when (this@EgoToonsMangaDto.status_nome) {
+            "Ativo", "Em Andamento" -> SManga.ONGOING
+            "Hiato", "Pausado" -> SManga.ON_HIATUS
+            "Completo", "Finalizado" -> SManga.COMPLETED
+            "Cancelado" -> SManga.CANCELLED
             else -> SManga.UNKNOWN
         }
     }
 }
 
 @Serializable
-data class EgoToonsPaginatedDto<T>(
-    val items: List<T>,
-    val pagination: EgoToonsPaginationDto,
-)
-
-@Serializable
 data class EgoToonsPaginationDto(
-    val offset: Int,
-    val limit: Int,
+    val pagina: Int,
+    val limite: Int,
     val total: Int,
-    val pages: Int,
-    val currentPage: Int,
-) {
-    val hasNextPage: Boolean
-        get() = currentPage < pages
-}
+    val totalPaginas: Int,
+    val hasNextPage: Boolean,
+)
 
 @Serializable
 data class EgoToonsChapterDto(
     val id: Int,
-    val chapter: Float,
-    val title: String? = null,
-    val status: String,
+    val obra_id: Int,
+    val numero: String,
+    val nome: String? = null,
+    val data_cadastro: String? = null,
+    val criado_em: String? = null,
 ) {
-    fun toSChapter(mangaId: Int): SChapter = SChapter.create().apply {
-        val formattedNum = chapter.toString().removeSuffix(".0")
-        val chapterName = "Capítulo $formattedNum"
+    fun toSChapter(): SChapter = SChapter.create().apply {
+        val parsedNum = numero.toFloatOrNull() ?: -1f
+        val chapterNumStr = if (parsedNum % 1 == 0f) parsedNum.toInt().toString() else parsedNum.toString()
+        val chapterName = "Capítulo $chapterNumStr"
 
         name = when {
-            title.isNullOrBlank() -> chapterName
-            title.contains(formattedNum) -> title
-            else -> "$chapterName - $title"
+            nome.isNullOrBlank() -> chapterName
+            nome.contains(chapterNumStr, ignoreCase = true) -> nome
+            else -> "$chapterName - $nome"
         }
-        chapter_number = chapter
-        url = "obra/$mangaId/capitulo/$formattedNum"
+        chapter_number = parsedNum
+        url = "obra/$obra_id/capitulo/$chapterNumStr"
+        date_upload = DATE_FORMATTER.tryParse(data_cadastro ?: criado_em)
     }
 }
+
+@Serializable
+data class EgoToonsPageListDto(
+    val paginas: List<EgoToonsPageDto> = emptyList(),
+)
+
+@Serializable
+data class EgoToonsPageDto(
+    val numero: Int,
+    val url: String,
+)

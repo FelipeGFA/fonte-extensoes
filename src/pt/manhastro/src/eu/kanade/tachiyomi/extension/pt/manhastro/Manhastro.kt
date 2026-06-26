@@ -161,7 +161,7 @@ class Manhastro :
 
     // ============================== Details ==============================
 
-    override fun mangaDetailsRequest(manga: SManga) = throw UnsupportedOperationException()
+    override fun mangaDetailsRequest(manga: SManga) = GET("$apiUrl/dados/${manga.url.substringAfterLast("/")}", headers)
 
     override fun mangaDetailsParse(response: Response) = throw UnsupportedOperationException()
 
