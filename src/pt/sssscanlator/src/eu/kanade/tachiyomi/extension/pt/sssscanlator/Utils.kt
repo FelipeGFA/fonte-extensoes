@@ -1,23 +1,29 @@
 package eu.kanade.tachiyomi.extension.pt.sssscanlator
 
 import eu.kanade.tachiyomi.source.model.SManga
-import keiyoushi.lib.cryptoaes.CryptoAES
+import keiyoushi.utils.extractNextJs
 import keiyoushi.utils.parseAs
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-internal fun extractSeriesChapters(document: Document, mangaSlug: String): List<SeriesChapterDto> {
+internal fun extractSeriesPayload(document: Document, mangaSlug: String): SeriesPayloadDto {
     require(mangaSlug.isNotBlank()) { "Slug da obra nao encontrado na URL" }
 
-    val html = document.html()
-    val base64Str = html.substringAfter("U2FsdGVkX1", missingDelimiterValue = "")
-        .substringBefore('"')
-        .let { if (it.isNotEmpty()) "U2FsdGVkX1$it" else null }
+    val matches = mutableListOf<JsonElement>()
+    document.extractNextJs<JsonElement> { element ->
+        if (element.matchesSeriesPayload(mangaSlug)) matches.add(element)
+        false
+    }
 
-    return base64Str?.let {
-        runCatching { it.decryptAndParseAs<List<SeriesChapterDto>>() }.getOrNull()
-    }?.takeIf(List<SeriesChapterDto>::isNotEmpty)
-        ?: error("Payload de capitulos nao encontrado para slug=$mangaSlug")
+    val chapterArrays = matches.takeIf { it.isNotEmpty() }?.map { it.parseAs<JsonObject>()["capitulos_lista"]!!.parseAs<JsonArray>() }
+        ?: error("Payload da obra nao encontrado para slug=$mangaSlug")
+
+    return matches[selectRealArray(chapterArrays)!!].parseAs()
 }
 
 internal fun extractBadgeTexts(titleElement: Element?): List<String> {
@@ -47,4 +53,35 @@ internal fun parseStatus(statusText: String?): Int = when (statusText?.lowercase
     else -> SManga.UNKNOWN
 }
 
-inline fun <reified T> String.decryptAndParseAs(): T = CryptoAES.decrypt(this, "yomu_trolling_scrapers_v1").parseAs<T>()
+private fun JsonElement.matchesSeriesPayload(expectedSlug: String): Boolean {
+    val payload = this as? JsonObject ?: return false
+    if (payload["slug"]?.jsonPrimitive?.contentOrNull != expectedSlug) return false
+
+    val chapters = payload["capitulos_lista"] as? JsonArray ?: return false
+    val hasValidChapterShape = chapters.isEmpty() || chapters.any { chapter ->
+        val chapterObject = chapter as? JsonObject ?: return@any false
+        "id" in chapterObject && "number" in chapterObject
+    }
+
+    return hasValidChapterShape &&
+        (
+            "chapterTotal" in payload ||
+                "refId" in payload ||
+                "coverImage" in payload ||
+                "description" in payload
+            )
+}
+
+// ignore fake matches with dummy fields
+fun selectRealArray(arrays: List<JsonArray>): Int? {
+    if (arrays.isEmpty()) return null
+    if (arrays.size == 1) return 0
+
+    val emptyIndex = arrays.indexOfFirst { it.isEmpty() }
+    if (emptyIndex != -1) return emptyIndex
+
+    return arrays.indices.maxByOrNull { index ->
+        val array = arrays[index]
+        array.sumOf { it.toString().length }.toDouble() / array.size
+    }
+}

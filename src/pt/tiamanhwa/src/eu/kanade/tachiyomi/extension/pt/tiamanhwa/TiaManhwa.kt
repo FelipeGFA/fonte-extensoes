@@ -47,7 +47,7 @@ class TiaManhwa :
         val titleElement = element.selectFirst(".post-title a")!!
         title = titleElement.text()
         setUrlWithoutDomain(titleElement.attr("abs:href"))
-        thumbnail_url = element.selectFirst(".item-thumb img")?.let { imageFromElement(it) }
+        thumbnail_url = element.selectFirst(".item-thumb img")?.attr("src")
     }
 
     override fun searchMangaNextPageSelector() = "a.next, a.page-numbers.next"
@@ -67,7 +67,7 @@ class TiaManhwa :
                     .replaceFirstChar { it.uppercase() }
 
             setUrlWithoutDomain(anchor.attr("href"))
-            thumbnail_url = element.selectFirst("img")?.let { imageFromElement(it) }
+            thumbnail_url = element.selectFirst("img")?.absUrl("src")
         }
     }
 
@@ -86,7 +86,7 @@ class TiaManhwa :
         return SManga.create().apply {
             title = titleElement.text()
             setUrlWithoutDomain(titleElement.attr("abs:href"))
-            thumbnail_url = thumbElement?.let { imageFromElement(it) }
+            thumbnail_url = thumbElement?.attr("src")
         }
     }
 

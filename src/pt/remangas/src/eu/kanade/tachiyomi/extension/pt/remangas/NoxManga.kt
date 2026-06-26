@@ -30,15 +30,13 @@ class NoxManga : HttpSource() {
     override val id: Long = 7462657023971681136
 
     override val client: OkHttpClient = network.client.newBuilder()
-        .addInterceptor(NixSignatureInterceptor(network.client, API_ORIGIN, baseUrl, SITE_ID))
         .rateLimit(3, 1.seconds)
         .build()
 
-    private val apiUrl: String = "$API_ORIGIN/api/v1/comics"
+    private val apiUrl: String = "https://xodneo.site/api/v1/comics"
 
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
         .set("Origin", baseUrl)
-        .set("Referer", "$baseUrl/")
 
     // ====================== Popular ====================================
 
@@ -52,10 +50,10 @@ class NoxManga : HttpSource() {
         return GET(url, headers)
     }
 
-    override fun popularMangaParse(response: Response): MangasPage = response.use {
-        val dto = it.parseAs<PageableDto<MangaDto>>()
+    override fun popularMangaParse(response: Response): MangasPage {
+        val dto = response.parseAs<PageableDto<MangaDto>>()
         val mangas = dto.list.map(MangaDto::toSManga)
-        MangasPage(mangas, hasNextPage = dto.hasNextPage())
+        return MangasPage(mangas, hasNextPage = dto.hasNextPage())
     }
 
     // ====================== Latest ====================================
@@ -86,12 +84,13 @@ class NoxManga : HttpSource() {
 
     // ====================== Details ====================================
 
-    override fun mangaDetailsParse(response: Response): SManga = response.use {
-        val document = it.asJsoup()
-        SManga.create().apply {
+    override fun mangaDetailsParse(response: Response): SManga {
+        val document = response.asJsoup()
+        return SManga.create().apply {
             title = document.selectFirst(".detail-title")!!.text()
             thumbnail_url = document.selectFirst(".detail-cover img")?.absUrl("src")
             description = document.selectFirst(".detail-description")?.text()
+            genre = document.select(".detail-tags a").joinToString { it.text() }
             genre = document.select(".detail-tags a").joinToString { it.text() }
             document.selectFirst(".status-badge")?.text()?.let {
                 status = when (it.lowercase()) {
@@ -107,41 +106,25 @@ class NoxManga : HttpSource() {
 
     // ====================== Chapters ====================================
 
-    override fun getMangaUrl(manga: SManga): String = "$baseUrl${manga.url}"
-
-    override fun chapterListParse(response: Response): List<SChapter> = response.use {
-        val document = it.asJsoup()
-        val dto = document.select("script[type=application/ld+json]")
-            .firstNotNullOfOrNull { element ->
-                val json = element.data().ifEmpty { element.html() }
-                if (!json.contains("ItemList") || !json.contains("itemListElement")) {
-                    return@firstNotNullOfOrNull null
-                }
-
-                runCatching { json.parseAs<ChapterListJsonLdDto>() }.getOrNull()
-            } ?: return@use emptyList()
-
-        dto.toChapterList { setUrlWithoutDomain(it) }
+    override fun chapterListRequest(manga: SManga): Request {
+        val slug = manga.url.substringAfterLast("/")
+        val url = "$apiUrl/slug/$slug/chapters".toHttpUrl().newBuilder()
+            .addQueryParameter("page", "1")
+            .addQueryParameter("per_page", "999")
+            .addQueryParameter("sort", "newest")
+            .build()
+        return GET(url, headers)
     }
 
-    // ====================== Pages ====================================
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val pathSegments = response.request.url.pathSegments
+        val dto = response.parseAs<PageableDto<ChapterDto>>()
+        return dto.list.map { it.toSChapter(pathSegments[pathSegments.size - 2]) }
+    }
 
-    override fun getChapterUrl(chapter: SChapter): String = "$baseUrl${chapter.url}"
-
-    override fun pageListParse(response: Response): List<Page> = response.use {
-        val pages = it.asJsoup()
-            .select("""img[src*="/chapters/"]""")
-            .mapNotNull { element -> element.absUrl("src").takeIf(String::isNotEmpty) }
-            .distinct()
-            .mapIndexed { index, imageUrl -> Page(index, imageUrl = imageUrl) }
-
-        pages
+    override fun pageListParse(response: Response): List<Page> = response.asJsoup().select("section > img").mapIndexed { index, element ->
+        Page(index, imageUrl = element.absUrl("src"))
     }
 
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
-
-    companion object {
-        private const val API_ORIGIN = "https://xodneo.site"
-        private const val SITE_ID = "00000000-0000-0000-0000-000000000003"
-    }
 }

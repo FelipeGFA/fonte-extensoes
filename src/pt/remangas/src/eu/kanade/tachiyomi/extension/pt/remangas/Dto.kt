@@ -2,9 +2,12 @@ package eu.kanade.tachiyomi.extension.pt.remangas
 
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import keiyoushi.utils.tryParse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Serializable
 class PageableDto<T>(
@@ -31,28 +34,20 @@ class MangaDto(
 }
 
 @Serializable
-class ChapterListJsonLdDto(
-    private val itemListElement: List<ChapterListItemDto>,
+class ChapterDto(
+    val number: Float,
+    val slug: String,
+    @SerialName("created_at")
+    val createdAt: String,
 ) {
-    fun toChapterList(setChapterUrl: SChapter.(String) -> Unit): List<SChapter> = itemListElement.map { it.toSChapter(setChapterUrl) }
-}
+    fun toSChapter(mangaSlug: String) = SChapter.create().apply {
+        name = "Capítulo ${number.toString().replace(".0", "")}"
+        chapter_number = number
+        url = "/ler/$mangaSlug/$slug"
+        date_upload = dateFormat.tryParse(createdAt)
+    }
 
-@Serializable
-class ChapterListItemDto(
-    private val item: ChapterJsonLdDto,
-) {
-    fun toSChapter(setChapterUrl: SChapter.(String) -> Unit): SChapter = item.toSChapter(setChapterUrl)
-}
-
-@Serializable
-class ChapterJsonLdDto(
-    private val name: String,
-    private val url: String,
-    private val position: Float,
-) {
-    fun toSChapter(setChapterUrl: SChapter.(String) -> Unit): SChapter = SChapter.create().apply {
-        name = this@ChapterJsonLdDto.name
-        chapter_number = position
-        setChapterUrl(this@ChapterJsonLdDto.url)
+    companion object {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ROOT)
     }
 }

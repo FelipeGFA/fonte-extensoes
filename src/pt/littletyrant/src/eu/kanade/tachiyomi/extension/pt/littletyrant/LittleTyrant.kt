@@ -10,10 +10,7 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.parseAs
-import okhttp3.Cookie
 import okhttp3.FormBody
-import okhttp3.Headers
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -33,19 +30,6 @@ class LittleTyrant :
     ) {
 
     override val client: OkHttpClient = network.client.newBuilder()
-        .addInterceptor { chain ->
-            val request = chain.request()
-            val readerKey = request.url.fragment
-            if (readerKey == null || !request.url.encodedPath.endsWith("/image-loader.php")) {
-                return@addInterceptor chain.proceed(request)
-            }
-
-            val cleanRequest = request.newBuilder()
-                .url(request.url.newBuilder().fragment(null).build())
-                .build()
-
-            decoder.decodeImage(chain.proceed(cleanRequest), readerKey.readerKey())
-        }
         .rateLimit(3, 1.seconds)
         .build()
 
@@ -80,9 +64,7 @@ class LittleTyrant :
     // =============================== Chapters =================================
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
-        val document = client.newCall(mangaDetailsRequest(manga)).execute().use { response ->
-            response.asJsoup()
-        }
+        val document = client.newCall(mangaDetailsRequest(manga)).execute().asJsoup()
         val mangaId = document.selectFirst("a.wp-manga-action-button")!!.attr("data-post")
         val chapters = mutableListOf<SChapter>()
         val url = "$baseUrl/wp-admin/admin-ajax.php"
@@ -94,9 +76,7 @@ class LittleTyrant :
                 .add("offset", offset.toString())
                 .build()
             offset += 12
-            val dto = client.newCall(POST(url, headers, form)).execute().use { response ->
-                response.parseAs<ChapterDto>()
-            }
+            val dto = client.newCall(POST(url, headers, form)).execute().parseAs<ChapterDto>()
             val chapterElements = dto.toJsoup(baseUrl).select(chapterListSelector())
             chapters += chapterElements.map(::chapterFromElement)
         } while (!dto.isEmpty())
@@ -119,15 +99,11 @@ class LittleTyrant :
     override fun fetchPageList(chapter: SChapter): Observable<List<Page>> = client.newCall(pageListRequest(chapter))
         .asObservableSuccess()
         .map { response ->
-            response.use {
-                val doc = it.asJsoup()
-                launchIO { countViews(doc) }
+            val doc = response.asJsoup()
+            launchIO { countViews(doc) }
 
-                val token = fetchReaderToken(it.request.url.toString())
-
-                decoder.extractPaths(doc, baseUrl).mapIndexed { idx, url ->
-                    Page(idx, url = it.request.url.toString(), imageUrl = url.withReaderToken(token))
-                }
+            decoder.extractPaths(doc).mapIndexed { idx, url ->
+                Page(idx, imageUrl = url)
             }
         }
 
@@ -136,52 +112,14 @@ class LittleTyrant :
     // =============================== Images =================================
 
     override fun imageRequest(page: Page): Request {
-        val imageUrl = page.imageUrl!!.toHttpUrl()
-        imageUrl.fragment?.let(::saveReaderCookie)
-        return GET(imageUrl, readerHeaders(page.url))
-    }
-
-    private fun fetchReaderToken(referer: String): String {
-        val url = "$baseUrl/wp-content/themes/madara2/gatekeeper.php".toHttpUrl().newBuilder()
-            .addQueryParameter("t", System.currentTimeMillis().toString())
+        val imageHeaders = headers.newBuilder()
+            .set("Accept", "image/webp,image/*,*/*")
+            .set("Referer", "$baseUrl/")
             .build()
-
-        return client.newCall(GET(url, readerHeaders(referer))).execute().use { response ->
-            response.parseAs<TokenDto>().token().also(::saveReaderCookie)
-        }
+        return GET(page.imageUrl!!, imageHeaders)
     }
-
-    private fun readerHeaders(referer: String): Headers = headers.newBuilder()
-        .set("Accept", "*/*")
-        .set("Referer", referer)
-        .set("Origin", baseUrl)
-        .set("X-Reader-Sec", READER_SEC)
-        .set("Sec-Fetch-Dest", "empty")
-        .set("Sec-Fetch-Mode", "cors")
-        .set("Sec-Fetch-Site", "same-origin")
-        .build()
-
-    private fun saveReaderCookie(token: String) {
-        val cookie = Cookie.Builder()
-            .name(READER_COOKIE)
-            .value(token)
-            .domain(baseUrl.toHttpUrl().host)
-            .path("/")
-            .build()
-
-        client.cookieJar.saveFromResponse(baseUrl.toHttpUrl(), listOf(cookie))
-    }
-
-    private fun String.readerKey(): String = substringAfter('.').substring(4, 20)
-
-    private fun String.withReaderToken(token: String): String = toHttpUrl().newBuilder()
-        .fragment(token)
-        .build()
-        .toString()
 
     companion object {
-        private const val READER_SEC = "tiraninha-web"
-        private const val READER_COOKIE = "lt_sec_val"
         private val CHAPTER_NUMBER_REGEX = """\d+(?:\.\d+)?""".toRegex()
         private val COMMA_REGEX = """,\s*""".toRegex()
     }

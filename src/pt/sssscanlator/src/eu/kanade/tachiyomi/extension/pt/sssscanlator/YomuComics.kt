@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.pt.sssscanlator
 
+import android.util.Base64
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -9,8 +10,15 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.network.rateLimit
+import keiyoushi.utils.extractNextJs
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.parseAs
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -100,8 +108,6 @@ class YomuComics : HttpSource() {
 
     // Details
 
-    override fun getMangaUrl(manga: SManga): String = baseUrl + manga.url
-
     override fun mangaDetailsParse(response: Response): SManga = parseSeriesPage(response).manga
 
     override fun getChapterUrl(chapter: SChapter): String = baseUrl + chapter.url.substringBefore('?')
@@ -117,28 +123,25 @@ class YomuComics : HttpSource() {
 
         val requestHeaders = headers.newBuilder()
             .set("Referer", chapterPageUrl)
+            .set("RSC", "1")
             .build()
 
         return GET(chapterPageUrl, requestHeaders)
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        val document = response.asJsoup()
-
-        val html = document.html()
-        val base64Str = html.substringAfter("U2FsdGVkX1", missingDelimiterValue = "")
-            .substringBefore('"')
-            .let { if (it.isNotEmpty()) "U2FsdGVkX1$it" else null }
-
-        val images = base64Str?.let {
-            runCatching { it.decryptAndParseAs<ChapterImagesDto>() }
-                .getOrNull()
-                ?.images
-                ?.takeIf(List<String>::isNotEmpty)
+        val matches = mutableListOf<JsonElement>()
+        response.extractNextJs<JsonElement> { element ->
+            val chapter = (element as? JsonObject)?.get("chapter") as? JsonObject
+            if (chapter?.get("imagens_lista") is JsonArray) matches.add(element)
+            false
         }
 
-        if (images != null) {
-            return images.mapIndexed { index, imageUrl ->
+        val chapterArrays = matches.map { ((it as JsonObject)["chapter"] as JsonObject)["imagens_lista"] as JsonArray }
+        val data = selectRealArray(chapterArrays)?.let { matches[it].parseAs<ChapterPageDto>() }
+
+        if (data != null && data.chapter.images.isNotEmpty()) {
+            return data.chapter.images.mapIndexed { index, imageUrl ->
                 Page(index, imageUrl = imageUrl)
             }
         }
@@ -167,57 +170,58 @@ class YomuComics : HttpSource() {
     // Utils
 
     private fun parseLibraryResponse(response: Response): MangasPage {
-        val dto = response.parseAs<LibraryResponseDto>()
+        val resultString = response.body.string()
+        val pagination = resultString.parseAs<LibraryResponseDto>().pagination
 
-        val mangasList = dto.garimpo?.let { base64Str ->
-            base64Str.decryptAndParseAs<List<LibraryMangaDto>>()
-        } ?: emptyList()
+        // mangas field name changes frequently
+        val allArrays = resultString
+            .parseAs<JsonElement>()
+            .jsonObject.values
+            .mapNotNull { value ->
+                when (value) {
+                    is JsonArray -> value
+                    is JsonPrimitive -> value.contentOrNull?.let { base64Str ->
+                        runCatching {
+                            Base64.decode(base64Str, Base64.DEFAULT)
+                                .toString(Charsets.UTF_8)
+                                .parseAs<JsonArray>()
+                        }.getOrNull()
+                    }
+                    else -> null
+                }
+            }
 
-        val mangas = mangasList.filterNot(LibraryMangaDto::isNovel).map(LibraryMangaDto::toSManga)
-        val hasNextPage = dto.pagination.page < dto.pagination.totalPages
+        val rIndex = selectRealArray(allArrays)
+        val mangasList = allArrays[rIndex!!].map { it.parseAs<LibraryMangaDto>() }
+
+        val mangas = mangasList.filter { it.type != "novel" }.map(LibraryMangaDto::toSManga)
+        val hasNextPage = pagination.page < pagination.totalPages
         return MangasPage(mangas, hasNextPage)
     }
 
     private fun parseSeriesPage(response: Response): SeriesPageData {
         val mangaSlug = response.request.url.pathSegments.lastOrNull().orEmpty()
         val document = response.asJsoup()
-        val chaptersList = extractSeriesChapters(document, mangaSlug)
+        val payload = extractSeriesPayload(document, mangaSlug)
 
         val titleElement = document.selectFirst("h1")
-        val title = titleElement?.text().orEmpty()
+        val title = titleElement!!.text()
         val badgeTexts = extractBadgeTexts(titleElement)
         val statusText = badgeTexts.firstOrNull(::isStatusBadge)
         val genres = badgeTexts.filterNot(::isStatusBadge)
 
-        val coverUrl = document.selectFirst("meta[property=og:image]")?.attr("content")
-        val descriptionText = document.selectFirst("meta[property=og:description]")?.attr("content")
-            ?: document.selectFirst("meta[name=description]")?.attr("content")
-            ?: document.selectFirst("div.lg\\:col-span-8 p.text-muted-foreground")?.text()
-
-        var authorText: String? = null
-        var artistText: String? = null
-        document.select("div.flex.items-center.gap-2.text-sm").forEach { el ->
-            val text = el.text()
-            if (text.contains("Autor", ignoreCase = true)) {
-                authorText = text.substringAfter("Autor:").substringAfter("Autor").trim()
-            } else if (text.contains("Artista", ignoreCase = true)) {
-                artistText = text.substringAfter("Artista:").substringAfter("Artista").trim()
-            }
-        }
-
         val manga = SManga.create().apply {
             this.title = title
-            thumbnail_url = coverUrl?.takeUnless(String::isBlank)
-            description = descriptionText?.takeUnless(String::isBlank)
-            author = authorText?.takeUnless(String::isBlank)
-            artist = artistText?.takeUnless(String::isBlank)
+            thumbnail_url = payload.coverImage?.takeUnless(String::isBlank)
+            description = payload.description?.takeUnless(String::isBlank)
+            author = payload.author?.takeUnless(String::isBlank)
+            artist = payload.artist?.takeUnless(String::isBlank)
             genre = genres.joinToString().takeUnless(String::isBlank)
             status = parseStatus(statusText)
             url = "/obra/$mangaSlug"
-            initialized = true
         }
 
-        val chapters = chaptersList.map { chapter ->
+        val chapters = payload.chapters.map { chapter ->
             chapter.toSChapter(mangaSlug)
         }
 

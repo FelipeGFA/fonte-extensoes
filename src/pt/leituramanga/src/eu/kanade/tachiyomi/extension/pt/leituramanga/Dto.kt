@@ -5,9 +5,6 @@ import eu.kanade.tachiyomi.source.model.SManga
 import keiyoushi.utils.tryParse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -35,7 +32,7 @@ class MangaDto(
     val slug: String,
     val author: String? = null,
     val description: String? = null,
-    val status: JsonElement? = null,
+    val status: String? = null,
     val genres: List<GenreDto>? = emptyList(),
     val alternativeTitles: List<String>? = emptyList(),
 ) {
@@ -51,7 +48,11 @@ class MangaDto(
                 append("Títulos alternativos: ${it.joinToString()}")
             }
         }
-        status = this@MangaDto.status.toMangaStatus()
+        status = when (this@MangaDto.status) {
+            "Ongoing" -> SManga.ONGOING
+            "Completed" -> SManga.COMPLETED
+            else -> SManga.UNKNOWN
+        }
         genre = this@MangaDto.genres?.joinToString { it.name }
     }
 }
@@ -115,14 +116,3 @@ class MangaIdOnlyDto(
 class NextJsMangaIdDto(
     val mangaId: String,
 )
-
-private fun JsonElement?.toMangaStatus(): Int {
-    val status = this?.jsonPrimitive?.contentOrNull?.lowercase(Locale.ROOT) ?: return SManga.UNKNOWN
-    return when (status) {
-        "1", "ongoing" -> SManga.ONGOING
-        "2", "completed" -> SManga.COMPLETED
-        "3", "hiatus" -> SManga.ON_HIATUS
-        "4", "cancelled", "canceled" -> SManga.CANCELLED
-        else -> SManga.UNKNOWN
-    }
-}

@@ -66,7 +66,7 @@ class LeituraManga : HttpSource() {
     override fun latestUpdatesRequest(page: Int) = GET("$apiUrl/api/manga/?sort=time&limit=24&page=$page", headers)
 
     override fun latestUpdatesParse(response: Response): MangasPage {
-        val result = response.use { it.parseAs<MangaResponseDto<MangaListDto>>() }
+        val result = response.parseAs<MangaResponseDto<MangaListDto>>()
         val mangas = result.data.data.map { it.toSManga(cdnUrl) }
         val hasNext = result.data.pagination.let { it.page < it.totalPage }
         return MangasPage(mangas, hasNext)
@@ -154,7 +154,7 @@ class LeituraManga : HttpSource() {
 
         // Using the exact limit from the frontend so we get the 80/min limit instead of the default 3/min limit
         val request = GET("$apiUrl/api/chapter/get-by-manga-id?mangaId=$mangaId&page=1&limit=9007199254740991", headers)
-        val result = client.newCall(request).execute().use { it.parseAs<MangaResponseDto<ChapterListDto>>() }
+        val result = client.newCall(request).execute().parseAs<MangaResponseDto<ChapterListDto>>()
 
         return result.data.data.map { it.toSChapter(slug) }
     }
