@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.utils.tryParse
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -20,12 +21,8 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.time.Duration.Companion.minutes
 
-class Mangafreak : HttpSource() {
-    override val name: String = "Mangafreak"
-
-    override val lang: String = "en"
-
-    override val baseUrl: String = "https://ww2.mangafreak.me"
+@Source
+abstract class Mangafreak : HttpSource() {
 
     override val supportsLatest: Boolean = true
 

@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import keiyoushi.annotation.Source
 import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
@@ -22,17 +23,12 @@ import rx.Observable
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class BlossomManhwa(
-    override val lang: String = "all",
-) : HttpSource(),
+@Source
+abstract class BlossomManhwa :
+    HttpSource(),
     ConfigurableSource {
-    override val name = "BlossomManhwa"
-
-    override val id = 1781921631032816989
 
     override val supportsLatest = true
-
-    override val baseUrl = "https://api.cherrymanhwa.com"
 
     private val apiImageUrl = "https://api.cherrymanhwa.com/v1/images"
     private val siteUrl = "https://cherrymanhwa.com"

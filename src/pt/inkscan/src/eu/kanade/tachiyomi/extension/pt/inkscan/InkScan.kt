@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
@@ -21,13 +22,8 @@ import rx.Observable
 import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
-class InkScan : HttpSource() {
-
-    override val name = "Ink Scan"
-
-    override val baseUrl = "https://inkscann.live"
-
-    override val lang = "pt-BR"
+@Source
+abstract class InkScan : HttpSource() {
 
     override val supportsLatest = true
 

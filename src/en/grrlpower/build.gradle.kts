@@ -3,8 +3,12 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "Grrl Power Comic"
+        lang = "en"
+        baseUrl = "https://www.grrlpowercomic.com"
+    }
     name = "Grrl Power Comic"
-    className = "GrrlPower"
     versionCode = 4
     contentWarning = ContentWarning.SAFE
     libVersion = "1.4"

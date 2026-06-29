@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.parseAs
@@ -23,13 +24,8 @@ import org.jsoup.nodes.Element
 import rx.Observable
 import java.io.IOException
 
-class Fliptru : HttpSource() {
-
-    override val name = "Fliptru"
-
-    override val baseUrl = "https://fliptru.com.br"
-
-    override val lang = "pt-BR"
+@Source
+abstract class Fliptru : HttpSource() {
 
     override val supportsLatest = true
 

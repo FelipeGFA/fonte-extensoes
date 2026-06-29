@@ -3,8 +3,12 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "MiMi"
+        lang = "vi"
+        baseUrl = "https://mimimoe.moe"
+    }
     name = "MiMi"
-    className = "MiMi"
     versionCode = 6
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"

@@ -3,8 +3,12 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "Ink Scan"
+        lang = "pt-BR"
+        baseUrl = "https://inkscann.live"
+    }
     name = "Ink Scan"
-    className = "InkScan"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"

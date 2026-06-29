@@ -3,8 +3,12 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "Fliptru"
+        lang = "pt-BR"
+        baseUrl = "https://fliptru.com.br"
+    }
     name = "Fliptru"
-    className = "Fliptru"
     versionCode = 3
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"

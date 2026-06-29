@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import keiyoushi.annotation.Source
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.parseAs
 import okhttp3.HttpUrl
@@ -14,13 +15,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 
-class ValkYuri : HttpSource() {
-
-    override val name = "ValkYuri"
-
-    override val baseUrl = "https://valkyuri.com"
-
-    override val lang = "pt-BR"
+@Source
+abstract class ValkYuri : HttpSource() {
 
     override val supportsLatest = true
 

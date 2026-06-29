@@ -3,8 +3,12 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "TruyenTranh3Q"
+        lang = "vi"
+        baseUrl = "https://manhua3q.com"
+    }
     name = "TruyenTranh3Q"
-    className = "TruyenTranh3Q"
     versionCode = 9
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"

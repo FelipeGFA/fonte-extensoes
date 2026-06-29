@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
@@ -23,12 +24,10 @@ import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class Danbooru :
+@Source
+abstract class Danbooru :
     HttpSource(),
     ConfigurableSource {
-    override val name: String = "Danbooru"
-    override val baseUrl: String = "https://danbooru.donmai.us"
-    override val lang: String = "all"
     override val supportsLatest: Boolean = true
 
     private val dateFormat =

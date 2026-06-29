@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.parseAs
 import kotlinx.coroutines.CoroutineScope
@@ -28,13 +29,8 @@ import kotlin.collections.plusAssign
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-class AnimeXNovel : HttpSource() {
-
-    override val name = "AnimeXNovel"
-
-    override val baseUrl: String = "https://www.animexnovel.com"
-
-    override val lang: String = "pt-BR"
+@Source
+abstract class AnimeXNovel : HttpSource() {
 
     override val supportsLatest: Boolean = true
 

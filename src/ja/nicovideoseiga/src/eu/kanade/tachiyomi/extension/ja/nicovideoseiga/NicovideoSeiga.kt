@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import keiyoushi.annotation.Source
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -20,10 +21,8 @@ import rx.Observable
 import uy.kohesive.injekt.injectLazy
 import kotlin.experimental.xor
 
-class NicovideoSeiga : HttpSource() {
-    override val baseUrl: String = "https://sp.manga.nicovideo.jp"
-    override val lang: String = "ja"
-    override val name: String = "Nicovideo Seiga"
+@Source
+abstract class NicovideoSeiga : HttpSource() {
     override val supportsLatest: Boolean = false
     override val client: OkHttpClient = network.client.newBuilder()
         .addInterceptor(::imageIntercept)

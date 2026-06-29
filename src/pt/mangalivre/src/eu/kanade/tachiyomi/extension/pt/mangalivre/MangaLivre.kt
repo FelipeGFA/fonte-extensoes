@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
@@ -23,16 +24,11 @@ import okhttp3.Response
 import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
-class MangaLivre :
+@Source
+abstract class MangaLivre :
     HttpSource(),
     ConfigurableSource {
     private val baseUrlHost by lazy { baseUrl.toHttpUrl().host }
-
-    override val name: String = "Manga Livre"
-
-    override val baseUrl: String = "https://toonlivre.net"
-
-    override val lang: String = "pt-BR"
 
     override val supportsLatest: Boolean = true
 

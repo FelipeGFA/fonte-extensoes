@@ -3,8 +3,12 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "Manta"
+        lang = "en"
+        baseUrl = "https://manta.net"
+    }
     name = "Manta Comics"
-    className = "MantaComics"
     versionCode = 6
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"

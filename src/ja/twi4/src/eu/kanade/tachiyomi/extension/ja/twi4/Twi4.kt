@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -21,11 +22,9 @@ import okhttp3.Response
 import rx.Observable
 import uy.kohesive.injekt.injectLazy
 
-class Twi4 : HttpSource() {
+@Source
+abstract class Twi4 : HttpSource() {
     // The domain sai-zen-sen.jp directs to their main site rather than Twi4. It has to be /comics/twi4
-    override val baseUrl: String = "https://sai-zen-sen.jp/comics/twi4/"
-    override val lang: String = "ja"
-    override val name: String = "Twi4"
     override val supportsLatest: Boolean = false
     private val application: Application by injectLazy()
     private val validPageTest: Regex =

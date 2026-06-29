@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.lib.textinterceptor.TextInterceptor
 import keiyoushi.lib.textinterceptor.TextInterceptorHelper
 import keiyoushi.utils.getPreferencesLazy
@@ -25,10 +26,9 @@ import java.util.Locale
 import kotlin.collections.ArrayList
 
 @Suppress("unused")
-class GrrlPower(
-    override val baseUrl: String = "https://www.grrlpowercomic.com",
-    override val lang: String = "en",
-    override val name: String = "Grrl Power Comic",
+@Source
+abstract class GrrlPower(
+
     override val supportsLatest: Boolean = false,
 ) : HttpSource(),
     ConfigurableSource {

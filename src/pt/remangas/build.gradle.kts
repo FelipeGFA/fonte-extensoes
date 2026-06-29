@@ -3,8 +3,13 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "NoxManga"
+        lang = "pt-BR"
+        baseUrl = "https://noxtoons.com"
+        id = 7462657023971681136L
+    }
     name = "NoxManga"
-    className = "NoxManga"
     versionCode = 53
     contentWarning = ContentWarning.SAFE
     libVersion = "1.4"

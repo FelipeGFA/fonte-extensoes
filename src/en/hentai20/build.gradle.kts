@@ -9,4 +9,5 @@ keiyoushi {
     contentWarning = ContentWarning.NSFW
     theme = "mangathemesia"
     libVersion = "1.4"
+    baseUrl = "https://hentai20.io"
 }

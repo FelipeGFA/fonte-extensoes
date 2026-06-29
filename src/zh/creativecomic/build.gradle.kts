@@ -3,8 +3,12 @@ plugins {
 }
 
 keiyoushi {
+    source {
+        name = "CCC追漫台"
+        lang = "zh-Hant"
+        baseUrl = "https://www.creative-comic.tw"
+    }
     name = "Creative Comic Collection"
-    className = "Creativecomic"
     versionCode = 2
     contentWarning = ContentWarning.SAFE
     libVersion = "1.4"
