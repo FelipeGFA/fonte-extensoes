@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "BoxManhwa"
-    className = ".BoxManhwa"
+    className = "BoxManhwa"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
     theme = "madtheme"

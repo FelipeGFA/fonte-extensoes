@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "ManhuaSite"
-    className = ".ManhuaSite"
+    className = "ManhuaSite"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
     theme = "madtheme"

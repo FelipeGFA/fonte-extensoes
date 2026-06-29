@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "Fliptru"
-    className = ".Fliptru"
+    className = "Fliptru"
     versionCode = 3
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"

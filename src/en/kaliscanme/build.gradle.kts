@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "KaliScan.me"
-    className = ".KaliScanMe"
+    className = "KaliScanMe"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
     theme = "madtheme"

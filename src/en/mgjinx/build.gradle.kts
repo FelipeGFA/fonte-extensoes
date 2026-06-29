@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "MGJinx"
-    className = ".MGJinx"
+    className = "MGJinx"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
     theme = "madtheme"

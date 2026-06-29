@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "MangaSaga"
-    className = ".MangaSaga"
+    className = "MangaSaga"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
     theme = "madtheme"

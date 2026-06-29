@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "Ink Scan"
-    className = ".InkScan"
+    className = "InkScan"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"
