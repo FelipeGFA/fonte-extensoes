@@ -23,8 +23,6 @@ abstract class ArgosComics : HttpSource() {
 
     override val supportsLatest: Boolean = true
 
-    override val versionId: Int = 2
-
     override val client: OkHttpClient = network.client.newBuilder()
         .rateLimit(3, 2.seconds)
         .build()

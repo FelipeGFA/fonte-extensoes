@@ -34,8 +34,6 @@ abstract class AnimeXNovel : HttpSource() {
 
     override val supportsLatest: Boolean = true
 
-    override val versionId: Int = 2
-
     override val client: OkHttpClient = network.client.newBuilder()
         .readTimeout(1.minutes)
         .callTimeout(1.minutes)

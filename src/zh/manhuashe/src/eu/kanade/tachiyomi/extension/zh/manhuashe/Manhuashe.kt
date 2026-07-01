@@ -15,6 +15,7 @@ import org.jsoup.nodes.Element
 
 @Source
 abstract class Manhuashe : HttpSource() {
+
     override val supportsLatest: Boolean = true
 
     // Popular

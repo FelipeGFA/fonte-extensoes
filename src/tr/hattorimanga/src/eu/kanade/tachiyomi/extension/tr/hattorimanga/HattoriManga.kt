@@ -32,8 +32,6 @@ abstract class HattoriManga : HttpSource() {
 
     override val supportsLatest: Boolean = true
 
-    override val versionId: Int = 2
-
     private val json: Json by injectLazy()
 
     private var csrfToken: String = ""
