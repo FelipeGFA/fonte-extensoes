@@ -3,15 +3,15 @@ plugins {
 }
 
 keiyoushi {
-    source {
-        name = "MiMi"
-        lang = "vi"
-        baseUrl = "https://mimimoe.moe"
-    }
     name = "MiMi"
     versionCode = 6
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"
+
+    source {
+        lang = "vi"
+        baseUrl = "https://mimimoe.moe"
+    }
 
     deeplink {
         host("mimimoe.moe")
