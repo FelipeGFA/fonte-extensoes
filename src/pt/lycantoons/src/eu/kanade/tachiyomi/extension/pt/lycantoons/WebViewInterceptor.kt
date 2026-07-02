@@ -4,8 +4,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import android.webkit.JavascriptInterface
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import keiyoushi.utils.applicationContext
@@ -14,239 +12,264 @@ import okhttp3.Headers
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Protocol
-import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
-import okio.Buffer
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-const val REUSE_TIMEOUT_MS = 30 * 1000L // 30s
-
-// proxy Request through WebView since OkHttp gets 403 and fails Cloudflare TLS signature checks
-class WebViewInterceptor(val baseUrl: String, private val userAgent: String?) : Interceptor {
+class WebViewInterceptor(private val baseUrl: String, private val userAgent: String?) : Interceptor {
 
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
-    private var destroyWv: Runnable? = null
+
     private var latch: CountDownLatch? = null
-    private var result: FetchResult? = null
-    private var errorMessage: Throwable? = null
+    private var fetchResult: FetchResult? = null
 
-    var hasErrored = false
-
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val req = chain.request()
-        val url = req.url.toString()
-        val isImage = url.contains("/cdn")
-
-        val requestBody = if (req.method == "POST") {
-            val buffer = Buffer()
-            req.body!!.writeTo(buffer)
-            buffer.readUtf8()
-        } else {
-            null
-        }
-
-        var resultData = fetchViaJs(url, req.method, req.headers, requestBody, isImage)
-
-        if (resultData.result == "HTTP 403") {
-            hasErrored = !hasErrored
-            resultData = fetchViaJs(url, req.method, req.headers, requestBody, isImage)
-        }
-        if (!resultData.success) throw IOException("[WebView]: " + resultData.result)
-
-        val resultConentType = resultData.contentType ?: "text/html"
-        return if (isImage) {
-            Base64.decode(resultData.result, Base64.DEFAULT).toResponse(req, resultConentType)
-        } else {
-            resultData.result.toResponse(req, resultConentType)
-        }
-    }
-
-    private val bridgeName = "Lycan_Bridge"
-    private var cachedWv: WebView? = null
-    private var accessTime = 0L
-
-    private val globalWebView: WebView
-        get() {
-            destroyWv?.let { mainHandler.removeCallbacks(it) }
-
-            if (cachedWv == null) {
-                cachedWv = WebView(applicationContext).apply {
-                    settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        userAgentString = userAgent
-                    }
-
-                    addJavascriptInterface(
-                        object {
-                            @JavascriptInterface
-                            fun passResult(data: String, contentType: String?) {
-                                result = FetchResult(true, data, contentType)
-                                latch?.countDown()
-                            }
-
-                            @JavascriptInterface
-                            fun passError(error: String) {
-                                result = FetchResult(false, error)
-                                latch?.countDown()
-                            }
-                        },
-                        bridgeName,
-                    )
-                }
-            }
-
-            destroyWv = Runnable {
-                cachedWv?.destroy()
-                cachedWv = null
-                destroyWv = null
-            }.also {
-                mainHandler.postDelayed(it, REUSE_TIMEOUT_MS)
-            }
-
-            return cachedWv!!
-        }
+    private val bridgeName = "LycanBridge"
+    private var cachedWebView: WebView? = null
+    private var isBaseUrlLoaded = false
 
     @Synchronized
-    private fun fetchViaJs(
-        url: String,
-        method: String,
-        headers: Headers,
-        requestBody: String?,
-        isImage: Boolean,
-    ): FetchResult {
-        latch = CountDownLatch(1)
-        result = null
-        errorMessage = null
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val url = request.url.toString()
+        val isImage = url.contains("cdn.lycantoons.com")
 
-        val isRsc = "/series/" in url
+        if (!url.contains("/api/") && !url.contains("/series/") && !isImage) {
+            return chain.proceed(request)
+        }
+
+        latch = CountDownLatch(1)
+        fetchResult = null
+
+        val isHtml = url.contains("/series/")
 
         mainHandler.post {
             try {
-                val webView = globalWebView
-                webView.webViewClient = object : WebViewClient() {
-                    override fun shouldInterceptRequest(
-                        view: WebView,
-                        request: WebResourceRequest,
-                    ): WebResourceResponse? = if (!isRsc || "/series/" in request.url.toString()) {
-                        null
-                    } else {
-                        WebResourceResponse(null, null, null)
-                    }
+                val webView = getWebView()
 
-                    override fun onReceivedHttpError(
-                        view: WebView,
-                        request: WebResourceRequest,
-                        errorResponse: WebResourceResponse,
-                    ) {
-                        if (request.isForMainFrame) {
-                            result = FetchResult(false, "HTTP ${errorResponse.statusCode}")
-                            latch?.countDown()
+                val bodyString = request.body?.let { requestBody ->
+                    val buffer = okio.Buffer()
+                    requestBody.writeTo(buffer)
+                    buffer.readUtf8()
+                }
+
+                if (isHtml) {
+                    var htmlExtracted = false
+                    webView.webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
+                            if (!request.url.toString().startsWith(baseUrl)) return true
+                            return super.shouldOverrideUrlLoading(view, request)
                         }
-                    }
 
-                    override fun onPageFinished(view: WebView, pageUrl: String?) {
-                        if (isRsc) {
-                            if (result != null) return
+                        override fun onPageFinished(view: WebView, pageUrl: String?) {
+                            if (htmlExtracted) return
+
                             view.evaluateJavascript(
                                 """
-                            (function() {
-                                window.$bridgeName.passResult(document.documentElement.outerHTML, document.contentType);
-                            })();
-                                """.trimIndent(),
-                                null,
-                            )
-                            return
-                        }
-
-                        val jsScript = if (isImage) {
-                            """
-                            (function() {
-                                const img = document.getElementById('_image');
-                                const toBase64 = (data, type) => {
-                                    if (data instanceof Blob) {
-                                        const reader = new FileReader();
-                                        reader.onload = () => window.$bridgeName.passResult(btoa(reader.result), type);
-                                        reader.onerror = () => window.$bridgeName.passError('Reader error');
-                                        reader.readAsBinaryString(data);
-                                    } else {
-                                        window.$bridgeName.passResult(data.toDataURL('image/jpeg', 0.8), 'image/jpeg');
+                                (function() {
+                                    if (document.title === 'Just a moment...' || document.getElementById('challenge-running') != null) {
+                                        return 'challenge';
                                     }
-                                };
-                                fetch(img.src, { cache: 'force-cache' })    // refech url to get compressed version
-                                    .then(r => r.blob())
-                                    .then(b => toBase64(b, b.type))
-                                    .catch(() => {                         // Fallback to canvas just in case if webivew acts up
-                                        const canvas = document.createElement('canvas');
-                                        canvas.width = img.naturalWidth;
-                                        canvas.height = img.naturalHeight;
-                                        canvas.getContext('2d').drawImage(img, 0, 0);
-                                        toBase64(canvas);
-                                    });
-                            })();
-                            """.trimIndent()
-                        } else {
-                            val jsHeaders = buildMap {
-                                headers.names().forEach { name ->
-                                    put(name, headers[name])
+                                    window.$bridgeName.passResult(document.documentElement.outerHTML, 'text/html');
+                                    return 'ready';
+                                })();
+                                """.trimIndent(),
+                            ) { result ->
+                                if (result == "\"ready\"" && !htmlExtracted) {
+                                    htmlExtracted = true
+                                    isBaseUrlLoaded = true
                                 }
-                            }.toJsonString()
-
-                            val jsRequestBody = if (requestBody != null) "body: `$requestBody`," else ""
-                            """
-                            (function() {
-                                let contentType;
-
-                                fetch('$url', {
-                                    method: '$method',
-                                    credentials: 'include',
-                                    headers: $jsHeaders,
-                                    $jsRequestBody
-                                })
-                                .then(res => {
-                                if (!res.ok) throw new Error('HTTP ' + res.status);
-                                contentType = res.headers.get('content-type')
-                                return res.text();
-                            })
-                            .then(text => window.$bridgeName.passResult(text, contentType))
-                                .catch(err => window.$bridgeName.passError(err.message));
-                            })();
-                            """.trimIndent()
+                            }
                         }
+                    }
+                    webView.loadUrl(url)
+                } else {
+                    if (isBaseUrlLoaded && webView.url?.startsWith(baseUrl) == true) {
+                        executeFetch(webView, url, request.method, request.headers, isImage, bodyString)
+                    } else {
+                        isBaseUrlLoaded = false
+                        var fetchExecuted = false
+                        webView.webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
+                                if (!request.url.toString().startsWith(baseUrl)) return true
+                                return super.shouldOverrideUrlLoading(view, request)
+                            }
 
-                        view.evaluateJavascript(jsScript, null)
+                            override fun onPageFinished(view: WebView, pageUrl: String?) {
+                                if (fetchExecuted) return
+
+                                view.evaluateJavascript(
+                                    """
+                                    (function() {
+                                        if (document.title === 'Just a moment...' || document.getElementById('challenge-running') != null) {
+                                            return 'challenge';
+                                        }
+                                        return 'ready';
+                                    })();
+                                    """.trimIndent(),
+                                ) { result ->
+                                    if (result == "\"ready\"" && !fetchExecuted) {
+                                        fetchExecuted = true
+                                        isBaseUrlLoaded = true
+                                        executeFetch(view, url, request.method, request.headers, isImage, bodyString)
+                                    }
+                                }
+                            }
+                        }
+                        webView.loadUrl("$baseUrl/")
                     }
                 }
-
-                if (isRsc && !hasErrored) {
-                    webView.loadUrl(url.substringBefore('?')) // document fetch-dest and drop rsc
-                    return@post
-                }
-
-                val pageHtml = if (isImage) "<html><body><img id='_image' src='$url'/></body></html>" else " "
-                webView.loadDataWithBaseURL(baseUrl, pageHtml, "text/html", "utf-8", null)
-            } catch (e: Throwable) {
-                errorMessage = e
+            } catch (e: Exception) {
+                fetchResult = FetchResult(false, "Exception: ${e.message}")
                 latch?.countDown()
             }
         }
 
-        latch?.await(if (isImage) 10 else 5, TimeUnit.SECONDS)
+        latch?.await(30, TimeUnit.SECONDS)
 
-        return result ?: FetchResult(false, (errorMessage ?: "Timed out").toString())
+        val finalResult = fetchResult ?: FetchResult(false, "Timeout waiting for WebView fetch")
+
+        if (!finalResult.success || finalResult.result.contains("HTTP 403")) {
+            isBaseUrlLoaded = false
+            throw IOException("[WebView] API Fetch failed: ${finalResult.result}")
+        }
+
+        val contentType = finalResult.contentType ?: if (isImage) "image/jpeg" else "application/json"
+
+        val bodyBytes = if (isImage) {
+            Base64.decode(finalResult.result, Base64.DEFAULT)
+        } else {
+            finalResult.result.toByteArray(Charsets.UTF_8)
+        }
+
+        return Response.Builder()
+            .request(request)
+            .protocol(Protocol.HTTP_1_1)
+            .code(200)
+            .message("OK")
+            .header("Content-Type", contentType)
+            .body(bodyBytes.toResponseBody(contentType.toMediaTypeOrNull()))
+            .build()
     }
 
-    private fun String.toResponse(request: Request, contentType: String): Response = this.toByteArray(Charsets.UTF_8).toResponse(request, contentType)
+    private fun executeFetch(webView: WebView, url: String, method: String, headers: Headers, isImage: Boolean, bodyString: String? = null) {
+        if (isImage) {
+            val jsScript = """
+                (function() {
+                    fetch('$url', {
+                        method: 'GET',
+                        credentials: 'omit'
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.blob().then(blob => ({blob, contentType: res.headers.get('content-type')}));
+                    })
+                    .then(({blob, contentType}) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const b64 = reader.result.split(',')[1];
+                            window.$bridgeName.passResult(b64, contentType);
+                        };
+                        reader.onerror = () => window.$bridgeName.passError('Reader error');
+                        reader.readAsDataURL(blob);
+                    })
+                    .catch(err => {
+                        const img = document.createElement('img');
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => {
+                            try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.naturalWidth;
+                                canvas.height = img.naturalHeight;
+                                canvas.getContext('2d').drawImage(img, 0, 0);
+                                window.$bridgeName.passResult(canvas.toDataURL('image/jpeg', 0.8).split(',')[1], 'image/jpeg');
+                            } catch (e) {
+                                window.$bridgeName.passError('Canvas error: ' + e.message);
+                            }
+                        };
+                        img.onerror = () => window.$bridgeName.passError('Image load error: ' + err.message);
+                        img.src = '$url';
+                    });
+                })();
+            """.trimIndent()
+            webView.evaluateJavascript(jsScript, null)
+            return
+        }
 
-    private fun ByteArray.toResponse(request: Request, contentType: String): Response = Response.Builder()
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .code(200)
-        .message("OK")
-        .header("Content-Type", contentType)
-        .body(this.toResponseBody(contentType.toMediaTypeOrNull()))
-        .build()
+        val jsHeaders = buildMap {
+            headers.names().forEach { name ->
+                if (name.lowercase() != "user-agent" && name.lowercase() != "referer") {
+                    put(name, headers[name])
+                }
+            }
+        }.toJsonString()
+
+        val jsBodyString = if (bodyString != null) {
+            "'${bodyString.replace("'", "\\'")}'"
+        } else {
+            "null"
+        }
+
+        val jsScript = """
+            (function() {
+                let contentType;
+                let options = {
+                    method: '$method',
+                    credentials: 'include',
+                    headers: $jsHeaders
+                };
+                if ($jsBodyString !== null) {
+                    options.body = $jsBodyString;
+                }
+
+                fetch('$url', options)
+                .then(res => {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    contentType = res.headers.get('content-type');
+                    return res.text();
+                })
+                .then(text => window.$bridgeName.passResult(text, contentType))
+                .catch(err => window.$bridgeName.passError(err.message));
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(jsScript, null)
+    }
+
+    private fun getWebView(): WebView {
+        if (cachedWebView == null) {
+            cachedWebView = WebView(applicationContext).apply {
+                settings.apply {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    userAgentString = userAgent
+                }
+
+                addJavascriptInterface(
+                    object {
+                        @JavascriptInterface
+                        fun passResult(data: String, contentType: String?) {
+                            fetchResult = FetchResult(true, data, contentType)
+                            latch?.countDown()
+                        }
+
+                        @JavascriptInterface
+                        fun passError(error: String) {
+                            fetchResult = FetchResult(false, error)
+                            latch?.countDown()
+                        }
+                    },
+                    bridgeName,
+                )
+            }
+        }
+        return cachedWebView!!
+    }
 }
+
+class FetchResult(
+    val success: Boolean,
+    val result: String,
+    val contentType: String? = null,
+)

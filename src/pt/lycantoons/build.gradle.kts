@@ -4,7 +4,7 @@ plugins {
 
 keiyoushi {
     name = "Lycan Toons"
-    versionCode = 8
+    versionCode = 9
     contentWarning = ContentWarning.SAFE
     libVersion = "1.4"
 

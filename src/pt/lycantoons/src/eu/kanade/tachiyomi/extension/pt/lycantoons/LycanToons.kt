@@ -15,7 +15,6 @@ import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
 import okhttp3.Request
 import okhttp3.Response
-import rx.Observable
 
 @Source
 abstract class LycanToons : HttpSource() {
@@ -32,35 +31,30 @@ abstract class LycanToons : HttpSource() {
 
     // =====================Popular=====================
 
-    override fun popularMangaRequest(page: Int): Request = metricsRequest("popular", page)
+    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/api/metrics/popular?limit=$PAGE_LIMIT&page=$page", headers)
 
-    override fun popularMangaParse(response: Response): MangasPage = response.parseAs<PopularResponse>().toMangasPage()
+    override fun popularMangaParse(response: Response): MangasPage = response.parseAs<SeriesListResponse>().toMangasPage()
 
     // =====================Latest=====================
+    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/api/chapters/recent?limit=50", headers)
 
-    override fun latestUpdatesRequest(page: Int): Request = metricsRequest("recently-updated", page)
-
-    override fun latestUpdatesParse(response: Response): MangasPage = response.parseAs<PopularResponse>().toMangasPage()
+    override fun latestUpdatesParse(response: Response): MangasPage = response.parseAs<LatestResponse>().toMangasPage()
 
     // =====================Search=====================
+    override fun getFilterList(): FilterList = getFilters()
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        var search = query
-        val tags = filters.selectedTags().toMutableList()
+        val seriesType = filters.valueOrEmpty<SeriesTypeFilter>().takeIf { it.isNotBlank() }
+        val status = filters.valueOrEmpty<StatusFilter>().takeIf { it.isNotBlank() }
+        val tags = filters.selectedTags().takeIf { it.isNotEmpty() }
 
-        val genreEntry = tagMapping.entries.find { it.value.equals(query, ignoreCase = true) }
-        if (genreEntry != null) {
-            tags.add(genreEntry.key)
-            search = ""
-        }
-
-        val payload = SearchRequestBody(
-            limit = PAGE_LIMIT,
+        val payload = SearchPayload(
             page = page,
-            search = search,
-            seriesType = filters.valueOrEmpty<SeriesTypeFilter>(),
-            status = filters.valueOrEmpty<StatusFilter>(),
-            tags = tags.distinct(),
+            limit = PAGE_LIMIT,
+            search = query,
+            seriesType = seriesType,
+            status = status,
+            tags = tags,
         )
 
         return POST("$baseUrl/api/series", headers, payload.toJsonRequestBody())
@@ -68,65 +62,37 @@ abstract class LycanToons : HttpSource() {
 
     override fun searchMangaParse(response: Response): MangasPage = response.parseAs<SearchResponse>().toMangasPage()
 
-    override fun getFilterList(): FilterList = LycanToonsFilters.get()
-
     // =====================Details=====================
+    override fun mangaDetailsRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
 
-    override fun getMangaUrl(manga: SManga): String = "$baseUrl${manga.url}"
-
-    override fun mangaDetailsRequest(manga: SManga): Request = rscRequest("$baseUrl/series/${manga.slug()}")
-
-    override fun mangaDetailsParse(response: Response): SManga = response.extractNextJs<SeriesDto>()!!.toSManga()
+    override fun mangaDetailsParse(response: Response): SManga = response.extractNextJs<SeriesDataWrapper>()?.seriesData?.toSManga()
+        ?: throw Exception("Não foi possível extrair os detalhes da obra")
 
     // =====================Chapters=====================
+    override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
 
-    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
-        val slug = manga.slug()
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val seriesData = response.extractNextJs<SeriesDataWrapper>()?.seriesData
+            ?: throw Exception("Não foi possível extrair a lista de capítulos")
 
-        val response = client.newCall(chapterPageRequest(slug)).execute()
-
-        response.extractNextJs<ChapterResponse>()?.capitulos!!
-            .map { it.toSChapter(slug) }
-            .sortedByDescending { it.chapter_number }
+        return seriesData.capitulos?.map { it.toSChapter(seriesData.slug) } ?: emptyList()
     }
-
-    private fun chapterPageRequest(slug: String): Request = rscRequest("$baseUrl/series/$slug/1")
-
-    override fun chapterListParse(response: Response): List<SChapter> = throw UnsupportedOperationException()
 
     // =====================Pages========================
-
-    override fun pageListRequest(chapter: SChapter): Request = rscRequest("$baseUrl${chapter.url}")
+    override fun pageListRequest(chapter: SChapter): Request = GET(baseUrl + chapter.url, headers)
 
     override fun pageListParse(response: Response): List<Page> {
-        val dto = response.extractNextJs<PageList>()
+        val pageList = response.extractNextJs<PageList>()
+            ?: throw Exception("Não foi possível extrair a lista de páginas")
 
-        return dto?.imageUrls?.mapIndexed { index, imageUrl -> Page(index, imageUrl = imageUrl) }
-            ?: emptyList()
+        return pageList.imageUrls.mapIndexed { i, url ->
+            Page(i, imageUrl = url)
+        }
     }
 
-    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
-
-    // =====================Utils=====================
-
-    private fun metricsRequest(path: String, page: Int): Request = GET("$baseUrl/api/metrics/$path?limit=$PAGE_LIMIT&page=$page", headers)
-
-    private fun SManga.slug(): String = url.substringBefore("?").substringAfterLast("/")
-
-    private fun String.rscBust() = "$this?_rsc=${List(5) { BASE36.random() }.joinToString("")}"
-
-    private fun getRscHeaders(url: String) = headers.newBuilder()
-        .add("next-router-state-tree", NEXT_ROUTER)
-        .add("next-url", url.removePrefix(baseUrl))
-        .add("RSC", "1")
-        .build()
-
-    private fun rscRequest(url: String) = GET(url.substringBefore("?").rscBust(), getRscHeaders(url))
+    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException("Not used.")
 
     companion object {
         private const val PAGE_LIMIT = 20
-        private const val CHAPTER_LIMIT = 100
-        private const val BASE36 = "0123456789abcdefghijklmnopqrstuvwxyz"
-        private const val NEXT_ROUTER = "%5B%22%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%2Ctrue%5D"
     }
 }

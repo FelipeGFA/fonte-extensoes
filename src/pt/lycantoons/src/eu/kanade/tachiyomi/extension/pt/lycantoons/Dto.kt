@@ -12,23 +12,55 @@ import java.util.Locale
 import java.util.TimeZone
 
 @Serializable
-class PopularResponse(
+class SeriesDataWrapper(
+    val seriesData: SeriesDto,
+)
+
+@Serializable
+class SeriesListResponse(
     private val data: List<SeriesDto>,
     private val pagination: PaginationDto? = null,
 ) {
-    fun toMangasPage() = MangasPage(data.map { it.toSManga() }, pagination?.hasNext == true)
+    fun toMangasPage() = MangasPage(data.map { it.toSManga() }, pagination?.hasNextPageBoolean == true)
 }
+
+@Serializable
+class LatestResponse(
+    private val chapters: List<LatestChapterDto>,
+) {
+    fun toMangasPage(): MangasPage {
+        // A single manga might have multiple recent chapters. We group by manga slug and keep the first one.
+        val distinctSeries = chapters.map { it.obra }.distinctBy { it.slug }
+        return MangasPage(distinctSeries.map { it.toSManga() }, false)
+    }
+}
+
+@Serializable
+class SearchPayload(
+    val page: Int,
+    val limit: Int,
+    val search: String,
+    val seriesType: String? = null,
+    val status: String? = null,
+    val tags: List<String>? = null,
+)
+
+@Serializable
+class LatestChapterDto(
+    val obra: SeriesDto,
+)
 
 @Serializable
 class SeriesDto(
     private val title: String,
-    private val slug: String,
+    val slug: String,
     private val coverUrl: String? = null,
     private val author: String? = null,
     private val artist: String? = null,
     private val description: String? = null,
     private val genre: List<String>? = null,
     private val status: String? = null,
+    val capitulos: List<ChapterDto>? = null,
 ) {
     fun toSManga() = SManga.create().apply {
         title = this@SeriesDto.title
@@ -41,36 +73,25 @@ class SeriesDto(
             ?.joinToString()
         description = this@SeriesDto.description
         status = parseStatus(this@SeriesDto.status)
-        initialized = true
     }
 }
 
 @Serializable
 class PaginationDto(
     val hasNext: Boolean? = null,
-)
-
-@Serializable
-class SearchRequestBody(
-    val limit: Int,
-    val page: Int,
-    val search: String,
-    val seriesType: String,
-    val status: String,
-    val tags: List<String>,
-)
+    val hasNextPage: Boolean? = null,
+) {
+    val hasNextPageBoolean: Boolean
+        get() = hasNext == true || hasNextPage == true
+}
 
 @Serializable
 class SearchResponse(
     private val series: List<SeriesDto>,
+    private val pagination: PaginationDto? = null,
 ) {
-    fun toMangasPage() = MangasPage(series.map { it.toSManga() }, false)
+    fun toMangasPage() = MangasPage(series.map { it.toSManga() }, pagination?.hasNextPageBoolean == true)
 }
-
-@Serializable
-class ChapterResponse(
-    val capitulos: List<ChapterDto>,
-)
 
 @Serializable
 class ChapterDto(
@@ -90,13 +111,6 @@ class ChapterDto(
 @Serializable
 class PageList(
     val imageUrls: List<String>,
-)
-
-@Serializable
-class FetchResult(
-    val success: Boolean,
-    val result: String,
-    val contentType: String? = null,
 )
 
 private fun parseStatus(status: String?) = when (status?.lowercase()) {
