@@ -31,13 +31,17 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 
 @Source
-abstract class Jinmantiantang :
+open class Jinmantiantang :
     HttpSource(),
     ConfigurableSource {
+
+    override val lang: String = "zh"
+    override val name: String = "禁漫天堂"
     override val supportsLatest: Boolean = true
 
     private val preferences = getPreferences { preferenceMigration() }
-    override val baseUrl = "https://" + preferences.baseUrl
+
+    override val baseUrl: String = "https://" + preferences.baseUrl
 
     private val updateUrlInterceptor = UpdateUrlInterceptor(preferences)
 
