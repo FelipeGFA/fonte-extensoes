@@ -3,13 +3,14 @@ plugins {
 }
 
 keiyoushi {
-    source {
-        name = "Nicovideo Seiga"
-        lang = "ja"
-        baseUrl = "https://sp.manga.nicovideo.jp"
-    }
     name = "Nicovideo Seiga"
-    versionCode = 8
+    versionCode = 9
     contentWarning = ContentWarning.SAFE
     libVersion = "1.4"
+
+    source {
+        lang = "ja"
+        baseUrl = "https://sp.manga.nicovideo.jp"
+        versionId = 2
+    }
 }

@@ -19,6 +19,7 @@ import okhttp3.Response
 import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.TimeZone
 import kotlin.time.Duration.Companion.minutes
 
 @Source
@@ -28,7 +29,9 @@ abstract class Mangafreak : HttpSource() {
 
     private val floatLetterPattern = Regex("""(\d+)(\.\d+|[a-i]+\b)?""")
 
-    private val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.US)
+    private val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.ROOT).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
 
     override val client: OkHttpClient = network.client.newBuilder()
         .connectTimeout(1.minutes)
@@ -38,14 +41,14 @@ abstract class Mangafreak : HttpSource() {
         .build()
 
     private fun mangaFromElement(element: Element, urlSelector: String): SManga = SManga.create().apply {
-        thumbnail_url = element.select("img").attr("abs:src")
-        element.select(urlSelector).apply {
+        thumbnail_url = element.selectFirst("img")?.absUrl("src")
+        element.selectFirst(urlSelector)!!.run {
             title = text()
-            url = attr("href")
+            setUrlWithoutDomain(absUrl("href"))
         }
     }
 
-    // Popular
+    // ============================== Popular ==============================
 
     override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/Genre/All/$page", headers)
 
@@ -56,7 +59,7 @@ abstract class Mangafreak : HttpSource() {
         return MangasPage(mangas, hasNextPage)
     }
 
-    // Latest
+    // ============================== Latest ===============================
 
     override fun latestUpdatesRequest(page: Int): Request {
         val url = if (page == 1) {
@@ -71,7 +74,7 @@ abstract class Mangafreak : HttpSource() {
         val document = response.asJsoup()
         val mangas = document.select("div.latest_item, div.latest_releases_item").map { element ->
             SManga.create().apply {
-                thumbnail_url = element.selectFirst("img")?.attr("abs:src")?.let {
+                thumbnail_url = element.selectFirst("img")?.absUrl("src")?.let {
                     val url = it.toHttpUrlOrNull()
                     if (url != null && url.pathSegments.firstOrNull() == "mini_images" && url.pathSegments.size >= 2) {
                         val slug = url.pathSegments[1]
@@ -87,14 +90,14 @@ abstract class Mangafreak : HttpSource() {
                 }
 
                 if (element.hasClass("latest_item")) {
-                    element.select("a.name").apply {
+                    element.selectFirst("a.name")!!.run {
                         title = text()
-                        url = attr("href")
+                        setUrlWithoutDomain(absUrl("href"))
                     }
                 } else {
-                    element.select("a").apply {
-                        title = first()!!.text()
-                        url = attr("href")
+                    element.selectFirst("a")!!.run {
+                        title = text()
+                        setUrlWithoutDomain(absUrl("href"))
                     }
                 }
             }
@@ -103,7 +106,7 @@ abstract class Mangafreak : HttpSource() {
         return MangasPage(mangas, hasNextPage)
     }
 
-    // Search
+    // ============================== Search ===============================
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = baseUrl.toHttpUrl().newBuilder()
@@ -125,11 +128,8 @@ abstract class Mangafreak : HttpSource() {
                     }
                     url.addPathSegments("Genre/$genres")
                 }
-
                 is StatusFilter -> url.addPathSegments("Status/${filter.toUriPart()}")
-
                 is TypeFilter -> url.addPathSegments("Type/${filter.toUriPart()}")
-
                 else -> {}
             }
         }
@@ -139,20 +139,21 @@ abstract class Mangafreak : HttpSource() {
 
     override fun searchMangaParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        val mangas = document.select("div.manga_search_item , div.mangaka_search_item").map { mangaFromElement(it, "h3 a, h5 a") }
+        val mangas = document.select("div.manga_search_item , div.mangaka_search_item")
+            .map { mangaFromElement(it, "h3 a, h5 a") }
         return MangasPage(mangas, false)
     }
 
-    // Details
+    // ============================== Details ==============================
 
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
         return SManga.create().apply {
-            thumbnail_url = document.select("div.manga_series_image img").attr("abs:src")
+            thumbnail_url = document.selectFirst("div.manga_series_image img")?.absUrl("src")
             title = document.select("div.manga_series_data h5").text()
-            status = when (document.select("div.manga_series_data > div:eq(2)").text()) {
-                "ON-GOING" -> SManga.ONGOING
-                "COMPLETED" -> SManga.COMPLETED
+            status = when (document.select("div.manga_series_data > div:eq(2)").text().lowercase()) {
+                "on-going", "ongoing" -> SManga.ONGOING
+                "completed" -> SManga.COMPLETED
                 else -> SManga.UNKNOWN
             }
             author = document.select("div.manga_series_data > div:eq(3)").text()
@@ -162,7 +163,7 @@ abstract class Mangafreak : HttpSource() {
         }
     }
 
-    // Chapter
+    // ============================= Chapters ==============================
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
@@ -188,24 +189,24 @@ abstract class Mangafreak : HttpSource() {
                     }
                 }
 
-                setUrlWithoutDomain(element.select("a").attr("href"))
+                setUrlWithoutDomain(element.selectFirst("a")!!.absUrl("href"))
                 date_upload = dateFormat.tryParse(element.select("td:eq(1)").text())
             }
         }.reversed()
     }
 
-    // Pages
+    // =============================== Pages ===============================
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
         return document.select("img#gohere[src]").mapIndexed { index, element ->
-            Page(index, imageUrl = element.attr("abs:src"))
+            Page(index, imageUrl = element.absUrl("src"))
         }
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
 
-    // Filter
+    // ============================== Filters ==============================
 
     override fun getFilterList() = FilterList(
         Filter.Header("Filters do not work if search bar is empty"),
