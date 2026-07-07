@@ -2,8 +2,10 @@ package eu.kanade.tachiyomi.extension.all.pururin
 
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
+import keiyoushi.annotation.Source as KeiyoushiSource
 
-class PururinFactory : SourceFactory {
+@KeiyoushiSource
+abstract class PururinFactory : SourceFactory {
     override fun createSources(): List<Source> = listOf(
         PururinAll(),
         PururinEN(),

@@ -2,8 +2,10 @@ package eu.kanade.tachiyomi.extension.all.ehentai
 
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
+import keiyoushi.annotation.Source as KeiyoushiSource
 
-class EHFactory : SourceFactory {
+@KeiyoushiSource
+abstract class EHFactory : SourceFactory {
     override fun createSources(): List<Source> = listOf(
         EHentaiJa(),
         EHentaiEn(),

@@ -4,8 +4,15 @@ plugins {
 
 keiyoushi {
     name = "Hitomi"
-    className = "HitomiFactory"
+
     versionCode = 41
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"
+
+    source {
+        name = "Hitomi"
+        lang = "all"
+        baseUrl = "https://hitomi.la"
+        skipCodeGen = true
+    }
 }

@@ -1,8 +1,10 @@
 package eu.kanade.tachiyomi.extension.all.hitomi
 
 import eu.kanade.tachiyomi.source.SourceFactory
+import keiyoushi.annotation.Source as KeiyoushiSource
 
-class HitomiFactory : SourceFactory {
+@KeiyoushiSource
+abstract class HitomiFactory : SourceFactory {
     override fun createSources() = listOf(
         Hitomi("all", "all"),
         Hitomi("en", "english"),

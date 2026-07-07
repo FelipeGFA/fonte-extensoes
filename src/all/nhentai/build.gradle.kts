@@ -4,10 +4,17 @@ plugins {
 
 keiyoushi {
     name = "NHentai"
-    className = "NHFactory"
+
     versionCode = 55
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"
+
+    source {
+        name = "NHentai"
+        lang = "all"
+        baseUrl = "https://nhentai.net"
+        skipCodeGen = true
+    }
 
     deeplink {
         host("nhentai.net")
