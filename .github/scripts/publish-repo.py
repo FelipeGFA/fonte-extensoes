@@ -78,6 +78,38 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
         skipped_downgrades.add(module)
         print(f"Skipping downgrade for {module}: local code {version_code} < remote code {remote_ext.versionCode}")
         continue
+    
+    rebuilt_modules.add(module)
+
+# Detect modules that exist in the remote index but have been genuinely deleted
+# from the source tree (not just modules that failed to build).
+genuinely_deleted = remote_modules - existing_modules
+if genuinely_deleted:
+    print(f"Removing genuinely deleted modules not found in source tree: {sorted(genuinely_deleted)}")
+
+safe_to_delete = (rebuilt_modules | genuinely_deleted) - skipped_downgrades
+
+print(f"Modules rebuilt: {len(rebuilt_modules)}, genuinely deleted: {len(genuinely_deleted)}, safe to delete from old index: {len(safe_to_delete)}")
+
+# Drop apks/icons for modules that were deleted or rebuilt (rebuilt ones are re-added below).
+for module in safe_to_delete:
+    for file in REPO_APK_DIR.glob(f"tachiyomi-{module}-v*.*.*.apk"):
+        print(f"removing {file.name}")
+        file.unlink(missing_ok=True)
+    for file in REPO_ICON_DIR.glob(f"eu.kanade.tachiyomi.extension.{module}.png"):
+        print(f"removing {file.name}")
+        file.unlink(missing_ok=True)
+
+# Pass 2: Actually process and extract the rebuilt modules
+for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
+    with info_file.open(encoding="utf-8") as f:
+        info = json.load(f)
+    package_name = info["packageName"]
+    version_code = info["versionCode"]
+    module = pkg_to_module(package_name)
+
+    if module in skipped_downgrades:
+        continue
 
     apk = next((info_file.parent / "outputs/apk/release").glob("*.apk"))
 
@@ -95,7 +127,6 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
     ):
         f.write(i.read())
 
-    rebuilt_modules.add(module)
     new_extensions.append(
         index_pb2.Extension(
             name=info["name"],
@@ -120,26 +151,6 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
             ],
         )
     )
-
-# Detect modules that exist in the remote index but have been genuinely deleted
-# from the source tree (not just modules that failed to build).
-genuinely_deleted = remote_modules - existing_modules
-if genuinely_deleted:
-    print(f"Removing genuinely deleted modules not found in source tree: {sorted(genuinely_deleted)}")
-
-
-safe_to_delete = (rebuilt_modules | genuinely_deleted) - skipped_downgrades
-
-print(f"Modules rebuilt: {len(rebuilt_modules)}, genuinely deleted: {len(genuinely_deleted)}, safe to delete from old index: {len(safe_to_delete)}")
-
-# Drop apks/icons for modules that were deleted or rebuilt (rebuilt ones are re-added below).
-for module in safe_to_delete:
-    for file in REPO_APK_DIR.glob(f"tachiyomi-{module}-v*.*.*.apk"):
-        print(f"removing {file.name}")
-        file.unlink(missing_ok=True)
-    for file in REPO_ICON_DIR.glob(f"eu.kanade.tachiyomi.extension.{module}.png"):
-        print(f"removing {file.name}")
-        file.unlink(missing_ok=True)
 
 
 all_extensions = [
