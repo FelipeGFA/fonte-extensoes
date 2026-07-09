@@ -63,7 +63,7 @@ remote_by_pkg = {ext.packageName: ext for ext in remote_proto.extensionList.exte
 existing_modules = get_existing_modules()
 
 new_extensions: list[index_pb2.Extension] = []
-rebuilt_modules = set()  # Track which modules were actually rebuilt successfully
+rebuilt_modules = set()
 skipped_downgrades = set()
 
 for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
@@ -127,11 +127,7 @@ genuinely_deleted = remote_modules - existing_modules
 if genuinely_deleted:
     print(f"Removing genuinely deleted modules not found in source tree: {sorted(genuinely_deleted)}")
 
-# SAFETY: Only remove from the index modules that were:
-#   1) Successfully rebuilt (have a new APK to replace the old one), OR
-#   2) Genuinely deleted from the source tree (no longer exist in src/)
-# This prevents wiping the entire index when core files change and trigger a
-# full rebuild that only partially succeeds (e.g., timeout, compile errors).
+
 safe_to_delete = (rebuilt_modules | genuinely_deleted) - skipped_downgrades
 
 print(f"Modules rebuilt: {len(rebuilt_modules)}, genuinely deleted: {len(genuinely_deleted)}, safe to delete from old index: {len(safe_to_delete)}")
