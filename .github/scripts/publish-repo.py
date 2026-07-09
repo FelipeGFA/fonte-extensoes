@@ -63,6 +63,7 @@ remote_by_pkg = {ext.packageName: ext for ext in remote_proto.extensionList.exte
 existing_modules = get_existing_modules()
 
 new_extensions: list[index_pb2.Extension] = []
+rebuilt_modules = set()  # Track which modules were actually rebuilt successfully
 skipped_downgrades = set()
 
 for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
@@ -70,10 +71,10 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
         info = json.load(f)
     package_name = info["packageName"]
     version_code = info["versionCode"]
-    
+    module = pkg_to_module(package_name)
+
     remote_ext = remote_by_pkg.get(package_name)
     if remote_ext is not None and version_code < remote_ext.versionCode:
-        module = pkg_to_module(package_name)
         skipped_downgrades.add(module)
         print(f"Skipping downgrade for {module}: local code {version_code} < remote code {remote_ext.versionCode}")
         continue
@@ -94,6 +95,7 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
     ):
         f.write(i.read())
 
+    rebuilt_modules.add(module)
     new_extensions.append(
         index_pb2.Extension(
             name=info["name"],
@@ -119,14 +121,23 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
         )
     )
 
-stale_modules = remote_modules - existing_modules
-if stale_modules:
-    print(f"Removing stale modules not found in source tree: {sorted(stale_modules)}")
+# Detect modules that exist in the remote index but have been genuinely deleted
+# from the source tree (not just modules that failed to build).
+genuinely_deleted = remote_modules - existing_modules
+if genuinely_deleted:
+    print(f"Removing genuinely deleted modules not found in source tree: {sorted(genuinely_deleted)}")
 
-to_delete = list((set(to_delete) | stale_modules) - skipped_downgrades)
+# SAFETY: Only remove from the index modules that were:
+#   1) Successfully rebuilt (have a new APK to replace the old one), OR
+#   2) Genuinely deleted from the source tree (no longer exist in src/)
+# This prevents wiping the entire index when core files change and trigger a
+# full rebuild that only partially succeeds (e.g., timeout, compile errors).
+safe_to_delete = (rebuilt_modules | genuinely_deleted) - skipped_downgrades
+
+print(f"Modules rebuilt: {len(rebuilt_modules)}, genuinely deleted: {len(genuinely_deleted)}, safe to delete from old index: {len(safe_to_delete)}")
 
 # Drop apks/icons for modules that were deleted or rebuilt (rebuilt ones are re-added below).
-for module in to_delete:
+for module in safe_to_delete:
     for file in REPO_APK_DIR.glob(f"tachiyomi-{module}-v*.*.*.apk"):
         print(f"removing {file.name}")
         file.unlink(missing_ok=True)
@@ -138,7 +149,7 @@ for module in to_delete:
 all_extensions = [
     ext
     for ext in remote_proto.extensionList.extensions
-    if not any(ext.packageName.endswith(f".{module}") for module in to_delete)
+    if not any(ext.packageName.endswith(f".{module}") for module in safe_to_delete)
 ]
 all_extensions.extend(new_extensions)
 all_extensions.sort(key=lambda ext: ext.packageName)
