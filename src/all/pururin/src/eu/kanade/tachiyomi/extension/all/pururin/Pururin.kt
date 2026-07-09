@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.utils.parseAs
 import kotlinx.serialization.Serializable
 import okhttp3.FormBody
@@ -17,11 +18,18 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-abstract class Pururin(
-    override val lang: String = "all",
-    private val searchLang: Pair<String, String>? = null,
-    private val langPath: String = "",
-) : HttpSource() {
+@Source
+abstract class Pururin : HttpSource() {
+    private val searchLang: Pair<String, String>? get() = when (lang) {
+        "en" -> Pair("13010", "english")
+        "ja" -> Pair("13011", "japanese")
+        else -> null
+    }
+    private val langPath: String get() = when (lang) {
+        "en" -> "/tags/language/13010/english"
+        "ja" -> "/tags/language/13011/japanese"
+        else -> ""
+    }
     override val name = "Pururin"
 
     final override val baseUrl = "https://pururin.me"
@@ -111,7 +119,7 @@ abstract class Pururin(
         var pagesMax = 9999
         var sortBy = "newest"
 
-        if (searchLang != null) includeTags.add(searchLang)
+        searchLang?.let { includeTags.add(it) }
 
         filters.forEach {
             when (it) {

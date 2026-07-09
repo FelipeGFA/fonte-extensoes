@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.lib.randomua.addRandomUAPreference
 import keiyoushi.lib.randomua.setRandomUserAgent
 import keiyoushi.network.rateLimit
@@ -34,16 +35,18 @@ import org.jsoup.nodes.Element
 import rx.Observable
 import uy.kohesive.injekt.injectLazy
 
-open class NHentai(
-    override val lang: String,
-    private val nhLang: String,
-) : HttpSource(),
+@Source
+abstract class NHentai :
+    HttpSource(),
     ConfigurableSource {
+    private val nhLang: String get() = when (lang) {
+        "en" -> "english"
+        "ja" -> "japanese"
+        "zh" -> "chinese"
+        else -> ""
+    }
 
     final override val baseUrl = "https://nhentai.net"
-
-    override val id by lazy { if (lang == "all") 7309872737163460316 else super.id }
-
     override val name = "NHentai"
 
     override val supportsLatest = true
