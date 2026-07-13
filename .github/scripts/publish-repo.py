@@ -32,11 +32,14 @@ ARTIFACTS_DIR = Path.home() / "apk-artifacts"
 # The checked-out `repo` branch we publish into (the working directory).
 REPO_DIR = Path.cwd()
 REPO_APK_DIR = REPO_DIR / "apk"
+REPO_JAR_DIR = REPO_DIR / "jar"
 REPO_ICON_DIR = REPO_DIR / "icon"
 REPO_APK_DIR.mkdir(parents=True, exist_ok=True)
+REPO_JAR_DIR.mkdir(parents=True, exist_ok=True)
 REPO_ICON_DIR.mkdir(parents=True, exist_ok=True)
 
 APK_BASE_URL = "https://raw.githubusercontent.com/FelipeGFA/extensoes/refs/heads/repo/apk"
+JAR_BASE_URL = "https://raw.githubusercontent.com/FelipeGFA/extensoes/refs/heads/repo/jar"
 ICON_BASE_URL = "https://raw.githubusercontent.com/FelipeGFA/extensoes/refs/heads/repo/icon"
 
 def get_existing_modules() -> set[str]:
@@ -96,6 +99,9 @@ for module in safe_to_delete:
     for file in REPO_APK_DIR.glob(f"tachiyomi-{module}-v*.*.*.apk"):
         print(f"removing {file.name}")
         file.unlink(missing_ok=True)
+    for file in REPO_JAR_DIR.glob(f"tachiyomi-{module}-v*.*.*.jar"):
+        print(f"removing {file.name}")
+        file.unlink(missing_ok=True)
     for file in REPO_ICON_DIR.glob(f"eu.kanade.tachiyomi.extension.{module}.png"):
         print(f"removing {file.name}")
         file.unlink(missing_ok=True)
@@ -111,10 +117,17 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
     if module in skipped_downgrades:
         continue
 
-    apk = next((info_file.parent / "outputs/apk/release").glob("*.apk"))
+    apk = next((info_file.parent / "outputs/apk/release").glob("*.apk"), None)
+    if apk is None:
+        raise FileNotFoundError(f"{package_name}: no release apk found under {info_file.parent}")
 
     apk_name = apk.name.replace("-release.apk", ".apk")
     (REPO_APK_DIR / apk_name).write_bytes(apk.read_bytes())
+
+    jar = next((info_file.parent / "outputs/jar/release").glob("*.jar"), None)
+    if jar is None:
+        raise FileNotFoundError(f"{package_name}: no release jar found under {info_file.parent}")
+    (REPO_JAR_DIR / jar.name).write_bytes(jar.read_bytes())
 
     badging = subprocess.check_output(
         [aapt(), "dump", "--include-meta-data", "badging", apk]
@@ -133,6 +146,7 @@ for info_file in ARTIFACTS_DIR.glob("**/keiyoushi-source-info.json"):
             packageName=package_name,
             resources=index_pb2.Resources(
                 apkUrl=f"{APK_BASE_URL}/{apk_name}",
+                jarUrl=f"{JAR_BASE_URL}/{jar.name}",
                 iconUrl=f"{ICON_BASE_URL}/{package_name}.png",
             ),
             extensionLib=info["extensionLib"],
