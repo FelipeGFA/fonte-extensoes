@@ -165,7 +165,6 @@ jobs:
             git add .
             git commit -m "Update extensions repo"
             git push
-            curl https://purge.jsdelivr.net/gh/FelipeGFA/extensoes@repo/index.min.json
           else
             echo "No changes to commit"
           fi
