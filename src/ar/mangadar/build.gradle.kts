@@ -5,18 +5,13 @@ plugins {
 }
 
 keiyoushi {
-    name = "WebNovel"
-    versionCode = 14
+    name = "MangaDar"
+    versionCode = 1
     contentWarning = ContentWarning.SAFE
     libVersion = "1.6"
 
     source {
-        lang = "en"
-        baseUrl = "https://www.webnovel.com"
-        id = 4081135203808920563L
-    }
-
-    deeplink {
-        path("/comic/..*")
+        lang = "ar"
+        baseUrl = "https://mangadar.com"
     }
 }
